@@ -237,15 +237,19 @@ class TEERelayer {
   }
 
   /**
-   * Main polling loop
+   * Main polling loop with production-ready error handling
    */
   async start() {
     console.log('\n🚀 TEE Relayer started');
-    console.log(`   Polling every ${CONFIG.POLL_INTERVAL_MS}ms\n`);
+    console.log(`   Polling every ${CONFIG.POLL_INTERVAL_MS}ms`);
+    console.log(`   Environment: ${process.env.NODE_ENV || 'development'}\n`);
 
-    setInterval(async () => {
+    let consecutiveErrors = 0;
+    const maxConsecutiveErrors = 5;
+
+    const poll = async () => {
       if (this.isProcessing) {
-        return; // Skip if already processing
+        return;
       }
 
       this.isProcessing = true;
@@ -254,19 +258,37 @@ class TEERelayer {
         const pendingRequests = await this.pollPendingRequests();
 
         if (pendingRequests.length > 0) {
-          console.log(`Found ${pendingRequests.length} pending request(s)`);
+          console.log(`[${new Date().toISOString()}] Found ${pendingRequests.length} pending request(s)`);
 
-          // Process requests sequentially
           for (const request of pendingRequests) {
             await this.processRequest(request);
           }
         }
+
+        // Reset error counter on success
+        consecutiveErrors = 0;
+
       } catch (error) {
-        console.error('Error in polling loop:', error);
+        consecutiveErrors++;
+        console.error(`[${new Date().toISOString()}] Error in polling loop (${consecutiveErrors}/${maxConsecutiveErrors}):`, error);
+
+        // Exponential backoff on consecutive errors
+        if (consecutiveErrors >= maxConsecutiveErrors) {
+          const backoffTime = Math.min(CONFIG.POLL_INTERVAL_MS * Math.pow(2, consecutiveErrors - maxConsecutiveErrors), 60000);
+          console.warn(`⚠️  Backing off for ${backoffTime}ms due to repeated errors`);
+          await new Promise(resolve => setTimeout(resolve, backoffTime));
+        }
       } finally {
         this.isProcessing = false;
       }
-    }, CONFIG.POLL_INTERVAL_MS);
+
+      // Schedule next poll
+      setTimeout(poll, CONFIG.POLL_INTERVAL_MS);
+    };
+
+    // Start polling
+    poll();
+    console.log('✓ Relayer polling active\n');
   }
 }
 
