@@ -4,7 +4,22 @@ export interface TokenHolding {
   contract: string;
   balance: string;
   decimals: number;
+  symbol: string;
+  name: string;
+  price?: string;
+  validator?: string;
+  reward?: string;
   valueUSD?: number;
+}
+
+export interface NFT {
+  contract: string;
+  tokenId: string;
+  metadata?: {
+    title?: string;
+    description?: string;
+    media?: string;
+  };
 }
 
 export interface PortfolioSnapshot {
@@ -18,7 +33,24 @@ export interface Portfolio {
   accountId: string;
   lastUpdated: string;
   holdings: TokenHolding[];
+  nfts?: NFT[];
+  totalValueUSD?: string;
   snapshots?: PortfolioSnapshot[];
+}
+
+export interface PortfolioAnalytics {
+  hhi: number;
+  concentration: 'Low' | 'Medium' | 'High';
+  riskScore: number;
+  topHolding: {
+    token: string;
+    percentage: number;
+  };
+  diversification: {
+    numAssets: number;
+    effectiveAssets: number;
+  };
+  recommendations: string[];
 }
 
 // Chat Types
@@ -109,6 +141,7 @@ export interface WalletState {
   accountId: string | null;
   isConnected: boolean;
   portfolio: Portfolio | null;
+  analytics: PortfolioAnalytics | null;
   loading: boolean;
   error: string | null;
 }
