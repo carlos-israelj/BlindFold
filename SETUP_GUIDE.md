@@ -1,86 +1,213 @@
 # BlindFold - Setup Guide
 
-Esta guía te ayudará a obtener las API keys necesarias para ejecutar BlindFold.
+Esta guía te ayudará a configurar todas las API keys y servicios necesarios para ejecutar BlindFold.
 
-## API Keys Necesarias
+## ✅ Estado Actual de tus APIs
 
-### 1. NEAR AI Cloud API Key
+Revisando tu `.env.local`, ya tienes configurado:
 
-**¿Qué es?** NEAR AI Cloud proporciona inferencia privada con TEEs (Trusted Execution Environments) usando Intel TDX + NVIDIA H200 GPUs.
+- ✅ **NEAR_AI_API_KEY** - Configurado y listo
+- ✅ **NOVA_API_KEY** - Configurado y listo
+- ✅ **NOVA_ACCOUNT_ID** - `cijimene5.nova-sdk.near` ✓
+- ✅ **NEAR Network** - Mainnet configurado
 
-**Pasos para obtenerla:**
+**Lo que necesitas agregar para producción:**
 
-1. Ve a [https://cloud.near.ai](https://cloud.near.ai)
-2. Haz clic en "Sign up" o "Log in" (puedes usar Google, GitHub, o email)
-3. Una vez dentro del dashboard:
-   - Ve a la sección "Credits" o "API Keys"
-   - Haz clic en "Generate API Key" o "New API Key"
-   - Copia la key generada (formato: `near_ai_xxxxxxxxx`)
-4. Guarda esta key en tu archivo `.env.local`:
-   ```
-   NEAR_AI_API_KEY=tu_key_aqui
-   ```
-
-**Notas:**
-- Necesitarás credits para usar la API. NEAR AI Cloud puede ofrecer credits gratuitos para empezar
-- Los precios varían por modelo:
-  - DeepSeek V3.1: ~$1.05/M tokens input, ~$3.10/M tokens output
-  - GPT OSS 120B: ~$0.15/M tokens input, ~$0.55/M tokens output
-
-**Documentación:** [https://docs.near.ai/cloud](https://docs.near.ai/cloud)
+1. ❌ **DATABASE_URL** - Para Better Auth (sesiones de usuario)
+2. ❌ **AUTH_SECRET** - Para encriptar sesiones
+3. ❌ **NEXT_PUBLIC_CONTRACT_ID** - Cuando despliegues el contrato
 
 ---
 
-### 2. NOVA API Key
+## 🔧 Configuración Pendiente
 
-**¿Qué es?** NOVA proporciona almacenamiento encriptado con AES-256-GCM, con keys manejadas en Shade TEEs.
+### 1. DATABASE_URL - Vercel Postgres (REQUERIDO para producción)
 
-**Pasos para obtenerla:**
+**¿Qué es?** Base de datos PostgreSQL para almacenar sesiones de Better Auth (login con wallet).
 
-1. Ve a [https://nova-sdk.com](https://nova-sdk.com)
-2. Haz clic en "Login" (puedes usar Email, Google, Apple, o GitHub)
-3. Una vez dentro:
-   - Ve a "Manage Account" o "Settings"
-   - Busca la sección "API Keys"
-   - Haz clic en "Generate API Key"
-   - Copia la key generada
-4. También necesitarás tu NOVA Account ID (formato: `xxx.nova-sdk.near`)
-   - Esto se crea automáticamente cuando haces login
-   - Lo encontrarás en tu perfil o dashboard
-5. Guarda ambos valores en tu `.env.local`:
+**Opción A: Vercel Postgres (Recomendado - Gratis)**
+
+1. **Entra a tu proyecto en Vercel Dashboard**
+2. **Storage → Create Database → Postgres**
+3. **Selecciona región:** US East (iad1) recomendada
+4. **Plan:** Free tier (256 MB, suficiente para MVP)
+5. **Copia la `DATABASE_URL`:**
+   - Vercel te mostrará varias URLs, usa la que dice `POSTGRES_URL`
+   - Formato: `postgres://default:xxx@xxx.postgres.vercel-storage.com:5432/verceldb`
+
+6. **Agregar a `.env.local`:**
+   ```env
+   DATABASE_URL="postgres://default:xxx@xxx.postgres.vercel-storage.com:5432/verceldb"
    ```
-   NOVA_API_KEY=tu_nova_key_aqui
-   NOVA_ACCOUNT_ID=tu_cuenta.nova-sdk.near
+
+7. **Ejecutar migraciones Prisma:**
+   ```bash
+   npx prisma generate
+   npx prisma migrate deploy
    ```
 
-**Notas:**
-- NOVA opera en NEAR blockchain
-- Las operaciones tienen pequeños costos en NEAR tokens:
-  - Crear vault (register group): ~0.05 NEAR (~$0.15)
-  - Upload data: ~0.01 NEAR por upload
-  - Retrieve data: ~0.001 NEAR por query
+**Opción B: PostgreSQL Local (Solo desarrollo)**
+
+```bash
+# Instalar PostgreSQL localmente
+# macOS: brew install postgresql
+# Ubuntu: sudo apt-get install postgresql
+
+# Crear base de datos
+createdb blindfold
+
+# Agregar a .env.local
+DATABASE_URL="postgresql://localhost:5432/blindfold"
+```
+
+**Opción C: Railway PostgreSQL (Alternativa gratis)**
+
+1. Ve a [https://railway.app](https://railway.app)
+2. New Project → Provision PostgreSQL
+3. Copia el `DATABASE_URL` de las variables
+4. Agrégalo a tu `.env.local`
+
+---
+
+### 2. AUTH_SECRET - Generar Ahora (30 segundos)
+
+**¿Qué es?** Clave secreta para encriptar las sesiones de Better Auth.
+
+**Cómo generarla:**
+
+```bash
+# En tu terminal, ejecuta:
+openssl rand -base64 32
+```
+
+**Resultado ejemplo:**
+```
+J8fK3mN9pQ2rS5tU8vW1xY4zA7bC0dE6fG9hI2jK5lM=
+```
+
+**Agregar a `.env.local`:**
+```env
+AUTH_SECRET="J8fK3mN9pQ2rS5tU8vW1xY4zA7bC0dE6fG9hI2jK5lM="
+```
+
+⚠️ **IMPORTANTE:** Esta clave debe ser diferente en desarrollo y producción. Genera una nueva para Vercel.
+
+---
+
+### 3. NEXT_PUBLIC_CONTRACT_ID - Cuando despliegues el contrato
+
+**¿Qué es?** ID de tu smart contract desplegado en NEAR.
+
+**Para testnet:**
+```env
+NEXT_PUBLIC_CONTRACT_ID=blindfold.testnet
+```
+
+**Para mainnet (producción):**
+```env
+NEXT_PUBLIC_CONTRACT_ID=tu-cuenta.near
+```
+
+**Cómo desplegar el contrato:**
+
+```bash
+# 1. Crear cuenta en testnet
+near create-account blindfold.testnet --useFaucet
+
+# 2. Compilar el contrato
+cd contract
+./build.sh
+
+# 3. Desplegar
+near deploy \
+  --accountId blindfold.testnet \
+  --wasmFile target/wasm32-unknown-unknown/release/blindfold_contract.wasm
+
+# 4. Inicializar
+near call blindfold.testnet new \
+  '{"owner":"blindfold.testnet"}' \
+  --accountId blindfold.testnet
+
+# 5. Agregar a .env.local
+NEXT_PUBLIC_CONTRACT_ID=blindfold.testnet
+```
+
+---
+
+## ✅ APIs que ya tienes configuradas
+
+### NEAR AI Cloud API Key (Ya configurada ✓)
+
+**Tu key actual:** `sk-8920ddc89c22472ea80d0fe7beb85871`
+
+**Verificar créditos:**
+- Ve a [https://cloud.near.ai](https://cloud.near.ai)
+- Revisa sección "Credits" para ver balance
+- Agregar créditos si es necesario
+
+**Modelos disponibles:**
+- DeepSeek V3.1: ~$1.05/M tokens input, ~$3.10/M tokens output
+- GPT OSS 120B: ~$0.15/M tokens input, ~$0.55/M tokens output (más barato)
+
+---
+
+### NOVA SDK (Ya configurada ✓)
+
+**Tu configuración actual:**
+- API Key: `nova_sk_36Py4LqkeHsNvM8rntiMP7aHxsSJ2fM6` ✓
+- Account ID: `cijimene5.nova-sdk.near` ✓
+
+**Verificar balance NEAR:**
+```bash
+near state cijimene5.nova-sdk.near
+```
+
+**Agregar fondos si es necesario:**
+- Las operaciones NOVA requieren NEAR tokens
+- Costos aproximados:
+  - Crear vault: ~0.05 NEAR
+  - Upload data: ~0.01 NEAR
+  - Retrieve: ~0.001 NEAR
+
+**Obtener NEAR para testnet:**
+```bash
+# Usar faucet oficial
+https://near-faucet.io
+```
 
 **Documentación:** [https://nova-25.gitbook.io/nova-docs/](https://nova-25.gitbook.io/nova-docs/)
 
 ---
 
-### 3. Configuración Final del .env.local
+---
 
-Tu archivo `.env.local` debe verse así:
+## 📝 Configuración Completa de .env.local
+
+Tu archivo `.env.local` debe verse así después de agregar lo que falta:
 
 ```env
-# NEAR AI Cloud (from cloud.near.ai dashboard)
-NEAR_AI_API_KEY=tu_near_ai_key_aqui
+# NEAR AI Cloud (✓ Ya configurado)
+NEAR_AI_API_KEY=sk-8920ddc89c22472ea80d0fe7beb85871
 
-# NOVA (from nova-sdk.com)
-NOVA_API_KEY=tu_nova_key_aqui
-NOVA_ACCOUNT_ID=tu_cuenta.nova-sdk.near
+# NOVA (✓ Ya configurado)
+NOVA_API_KEY=nova_sk_36Py4LqkeHsNvM8rntiMP7aHxsSJ2fM6
+NOVA_ACCOUNT_ID=cijimene5.nova-sdk.near
 
-# NEAR Network (ya configurado)
+# Database (❌ AGREGAR - Vercel Postgres)
+DATABASE_URL="postgres://default:xxx@xxx.postgres.vercel-storage.com:5432/verceldb"
+
+# Better Auth (❌ AGREGAR - Generar con: openssl rand -base64 32)
+AUTH_SECRET="tu_secreto_generado_aqui"
+AUTH_URL="http://localhost:3000"
+
+# NEAR Network (✓ Ya configurado)
 NEXT_PUBLIC_NEAR_NETWORK=mainnet
 NEXT_PUBLIC_NEAR_RPC_URL=https://rpc.mainnet.near.org
 
-# App (ya configurado)
+# Smart Contract (❌ AGREGAR - Cuando despliegues)
+NEXT_PUBLIC_CONTRACT_ID=blindfold.testnet
+
+# App (✓ Ya configurado)
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -153,17 +280,154 @@ Una vez que tengas las API keys configuradas:
 
 ---
 
-## Siguiente Paso: Deployment en Vercel
+## 🚀 Deployment en Vercel (Producción)
 
-Una vez que tengas todo funcionando localmente, puedes deployar a Vercel:
+### Paso 1: Configurar Base de Datos
 
-1. Push tu código a GitHub (ya hecho)
-2. Ve a [https://vercel.com](https://vercel.com)
-3. Importa tu repositorio
-4. Configura las mismas environment variables en Vercel:
-   - `NEAR_AI_API_KEY`
-   - `NOVA_API_KEY`
-   - `NOVA_ACCOUNT_ID`
+1. **Crear Vercel Postgres** (en Vercel Dashboard)
+   - Storage → Create Database → Postgres
+   - Free tier (256 MB)
+   - Copia el `POSTGRES_URL`
+
+### Paso 2: Preparar Variables de Entorno
+
+En Vercel Dashboard → Settings → Environment Variables, agrega:
+
+```env
+# Database (de Vercel Postgres)
+DATABASE_URL=postgres://default:xxx@xxx.postgres.vercel-storage.com:5432/verceldb
+
+# NEAR AI Cloud (copiar de .env.local)
+NEAR_AI_API_KEY=sk-8920ddc89c22472ea80d0fe7beb85871
+
+# NOVA (copiar de .env.local)
+NOVA_API_KEY=nova_sk_36Py4LqkeHsNvM8rntiMP7aHxsSJ2fM6
+NOVA_ACCOUNT_ID=cijimene5.nova-sdk.near
+
+# Better Auth (GENERAR NUEVA - NO usar la de desarrollo)
+AUTH_SECRET=genera_nueva_con_openssl_rand_base64_32
+AUTH_URL=https://tu-app.vercel.app
+
+# NEAR Network
+NEXT_PUBLIC_NEAR_NETWORK=testnet
+NEXT_PUBLIC_NEAR_RPC_URL=https://rpc.testnet.near.org
+
+# Smart Contract (cuando lo despliegues)
+NEXT_PUBLIC_CONTRACT_ID=blindfold.testnet
+
+# App URL (actualizar después del deploy)
+NEXT_PUBLIC_APP_URL=https://tu-app.vercel.app
+```
+
+### Paso 3: Deploy
+
+1. Push a GitHub: `git push origin master`
+2. Vercel → Import Repository
+3. Framework: Next.js (detectado automáticamente)
+4. **Build Command:** `prisma generate && next build`
 5. Deploy!
 
-Vercel detectará automáticamente que es un proyecto Next.js y lo configurará correctamente.
+### Paso 4: Después del Deploy
+
+1. **Actualizar AUTH_URL y NEXT_PUBLIC_APP_URL:**
+   - Usa la URL que Vercel te asignó
+   - Ej: `https://blindfold.vercel.app`
+   - Actualiza las variables en Vercel
+   - Redeploy (Settings → Redeploy)
+
+2. **Ejecutar migraciones Prisma:**
+   - Vercel lo hace automáticamente en build
+   - Verificar en Deployment Logs
+
+---
+
+## 🔧 Configurar TEE Relayer (Railway)
+
+El relayer necesita estar corriendo 24/7 para procesar requests del contrato.
+
+### Paso 1: Crear Cuenta Relayer en NEAR
+
+```bash
+# Crear cuenta
+near create-account relayer-blindfold.testnet --useFaucet
+
+# Verificar
+near state relayer-blindfold.testnet
+
+# Exportar clave (GUARDAR EN SECRETO)
+cat ~/.near-credentials/testnet/relayer-blindfold.testnet.json
+```
+
+### Paso 2: Deploy en Railway
+
+1. **Ve a [https://railway.app](https://railway.app)**
+2. **New Project → Deploy from GitHub**
+3. **Selecciona tu repositorio**
+4. **Root Directory:** `relayer`
+
+### Paso 3: Variables de Entorno en Railway
+
+```env
+CONTRACT_ID=blindfold.testnet
+NEAR_NETWORK=testnet
+RELAYER_ACCOUNT_ID=relayer-blindfold.testnet
+RELAYER_PRIVATE_KEY=ed25519:xxx (de ~/.near-credentials)
+NEAR_AI_API_KEY=sk-8920ddc89c22472ea80d0fe7beb85871
+NEAR_AI_MODEL=deepseek-ai/DeepSeek-V3.1
+POLL_INTERVAL_MS=5000
+NODE_ENV=production
+```
+
+### Paso 4: Verificar Logs
+
+En Railway → View Logs, deberías ver:
+
+```
+🚀 TEE Relayer started
+   Polling every 5000ms
+   Environment: production
+
+✓ Relayer polling active
+```
+
+---
+
+## ✅ Checklist Final
+
+Antes de ir a producción:
+
+- [ ] DATABASE_URL configurado (Vercel Postgres)
+- [ ] AUTH_SECRET generado (diferente para dev/prod)
+- [ ] Smart contract desplegado en testnet
+- [ ] NEXT_PUBLIC_CONTRACT_ID actualizado
+- [ ] Relayer corriendo en Railway
+- [ ] Relayer tiene fondos (>1 NEAR)
+- [ ] Variables de entorno en Vercel
+- [ ] Frontend desplegado y funcionando
+- [ ] Prueba E2E: wallet → chat → verificación
+
+---
+
+## 💡 Tips de Producción
+
+### Seguridad
+
+- ✅ Nunca commitear `.env.local` al repositorio
+- ✅ Usar AUTH_SECRET diferente en prod
+- ✅ Marcar RELAYER_PRIVATE_KEY como "Sensitive" en Railway
+- ✅ Regenerar API keys si se exponen
+
+### Monitoreo
+
+- **Frontend:** Vercel Analytics (gratis)
+- **Relayer:** Railway Logs en tiempo real
+- **Smart Contract:** `near view blindfold.testnet get_stats '{}'`
+
+### Costos
+
+- **Vercel:** Free tier (suficiente para MVP)
+- **Railway:** $5 crédito inicial
+- **NEAR Gas:** ~0.01 NEAR por request
+- **NEAR AI Cloud:** Pay-as-you-go (~$0.001/query)
+
+**Total estimado:** ~$5-10/mes para producción ligera
