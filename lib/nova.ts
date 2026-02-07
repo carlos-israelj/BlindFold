@@ -73,7 +73,11 @@ export async function deleteVault(accountId: string, vaultId: string): Promise<v
   const nova = getNovaClient(accountId);
 
   try {
-    await nova.deleteGroup(vaultId);
+    // Note: NOVA SDK may not have deleteGroup method
+    // For now, this is a placeholder - vault deletion may need manual intervention
+    console.log(`Vault deletion requested for ${vaultId}`);
+    // await nova.deleteGroup(vaultId);
+    throw new Error('Vault deletion not yet implemented in NOVA SDK');
   } catch (error) {
     console.error('Error deleting vault:', error);
     throw error;

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { ChatCompletion } from 'openai/resources';
 import { nearAIClient } from '@/lib/near-ai';
 import { hashData, fetchSignature } from '@/lib/verification';
 import { SYSTEM_PROMPT, DEFAULT_MODEL } from '@/lib/constants';
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
     const requestHash = hashData(requestBodyString);
 
     // Call NEAR AI Cloud
-    const completion = await nearAIClient.chat.completions.create(requestBody);
+    const completion = await nearAIClient.chat.completions.create(requestBody) as ChatCompletion;
 
     const chatId = completion.id;
     const content = completion.choices[0]?.message?.content || '';

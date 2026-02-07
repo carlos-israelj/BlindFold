@@ -136,7 +136,7 @@ export default function Home() {
 
           {/* Technical Details */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Why This Can't Exist Elsewhere</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Why This Cannot Exist Elsewhere</h2>
             <div className="space-y-3 text-gray-700">
               <p className="flex items-start gap-2">
                 <span className="text-blue-600 font-semibold">•</span>
@@ -161,7 +161,7 @@ export default function Home() {
         {/* Footer */}
         <footer className="text-center mt-16 text-gray-600">
           <p className="text-sm">
-            Built for NEARCON 2026 Innovation Sandbox - "The Private Web & Private Life" Track
+            Built for NEARCON 2026 Innovation Sandbox - &ldquo;The Private Web & Private Life&rdquo; Track
           </p>
         </footer>
       </div>
