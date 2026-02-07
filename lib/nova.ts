@@ -69,6 +69,52 @@ export async function retrieveFromVault(
   }
 }
 
+export async function listVaultFiles(
+  accountId: string,
+  vaultId: string
+): Promise<Array<{ cid: string; filename: string; size: number; uploadedAt: string }>> {
+  const nova = getNovaClient(accountId);
+
+  try {
+    // Check if NOVA SDK has a list method
+    if (typeof (nova as any).list === 'function') {
+      const files = await (nova as any).list(vaultId);
+      return files;
+    } else {
+      // If no list method, return placeholder
+      console.log('NOVA SDK list method not available');
+      return [];
+    }
+  } catch (error) {
+    console.error('Error listing vault files:', error);
+    // Return empty array instead of throwing
+    return [];
+  }
+}
+
+export async function getVaultInfo(
+  accountId: string,
+  vaultId: string
+): Promise<any> {
+  const nova = getNovaClient(accountId);
+
+  try {
+    // Try to get group info
+    if (typeof (nova as any).getGroupInfo === 'function') {
+      const info = await (nova as any).getGroupInfo(vaultId);
+      return info;
+    } else {
+      return {
+        vaultId,
+        message: 'Vault exists and is accessible',
+      };
+    }
+  } catch (error) {
+    console.error('Error getting vault info:', error);
+    throw error;
+  }
+}
+
 export async function deleteVault(accountId: string, vaultId: string): Promise<void> {
   const nova = getNovaClient(accountId);
 

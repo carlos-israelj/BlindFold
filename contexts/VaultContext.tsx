@@ -8,6 +8,8 @@ interface VaultContextType extends VaultState {
   clearVault: () => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setPortfolioCID: (cid: string) => void;
+  addChatCID: (cid: string) => void;
 }
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -18,6 +20,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     isInitialized: false,
     loading: false,
     error: null,
+    portfolioCID: null,
+    chatCIDs: [],
   });
 
   const initializeVault = useCallback((vaultId: string) => {
@@ -35,6 +39,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       isInitialized: false,
       loading: false,
       error: null,
+      portfolioCID: null,
+      chatCIDs: [],
     });
   }, []);
 
@@ -53,6 +59,20 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const setPortfolioCID = useCallback((cid: string) => {
+    setState((prev) => ({
+      ...prev,
+      portfolioCID: cid,
+    }));
+  }, []);
+
+  const addChatCID = useCallback((cid: string) => {
+    setState((prev) => ({
+      ...prev,
+      chatCIDs: [...(prev.chatCIDs || []), cid],
+    }));
+  }, []);
+
   return (
     <VaultContext.Provider
       value={{
@@ -61,6 +81,8 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
         clearVault,
         setLoading,
         setError,
+        setPortfolioCID,
+        addChatCID,
       }}
     >
       {children}

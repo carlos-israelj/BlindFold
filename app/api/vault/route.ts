@@ -4,6 +4,8 @@ import {
   uploadToVault,
   retrieveFromVault,
   deleteVault,
+  listVaultFiles,
+  getVaultInfo,
 } from '@/lib/nova';
 
 export async function POST(request: NextRequest) {
@@ -54,18 +56,37 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      case 'inspect': {
+      case 'list': {
         if (!vaultId) {
           return NextResponse.json(
             { success: false, error: 'vaultId is required' },
             { status: 400 }
           );
         }
-        // For now, return a placeholder
-        // In a full implementation, you'd list all files in the vault
+        const files = await listVaultFiles(accountId, vaultId);
         return NextResponse.json({
           success: true,
-          data: { vaultId, message: 'Vault inspection feature - list all CIDs here' },
+          data: { vaultId, files },
+        });
+      }
+
+      case 'inspect':
+      case 'info': {
+        if (!vaultId) {
+          return NextResponse.json(
+            { success: false, error: 'vaultId is required' },
+            { status: 400 }
+          );
+        }
+        const info = await getVaultInfo(accountId, vaultId);
+        const files = await listVaultFiles(accountId, vaultId);
+        return NextResponse.json({
+          success: true,
+          data: {
+            ...info,
+            files,
+            filesCount: files.length,
+          },
         });
       }
 

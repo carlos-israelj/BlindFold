@@ -119,6 +119,8 @@ export interface VaultState {
   isInitialized: boolean;
   loading: boolean;
   error: string | null;
+  portfolioCID?: string | null;
+  chatCIDs?: string[];
 }
 
 // UI Types

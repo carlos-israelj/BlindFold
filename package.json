@@ -4,31 +4,40 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
-    "next": "^14.2.0",
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "openai": "^4.75.0",
-    "nova-sdk-js": "^1.0.3",
-    "near-api-js": "^5.0.0",
-    "ethers": "^6.13.0",
     "@near-wallet-selector/core": "^8.9.0",
+    "@near-wallet-selector/modal-ui": "^8.9.0",
     "@near-wallet-selector/my-near-wallet": "^8.9.0",
-    "@near-wallet-selector/modal-ui": "^8.9.0"
+    "@prisma/client": "^5.19.0",
+    "@tanstack/react-query": "^5.59.0",
+    "better-auth": "^1.4.18",
+    "borsh": "^0.7.0",
+    "ethers": "^6.13.0",
+    "near-api-js": "^5.0.0",
+    "next": "^14.2.0",
+    "nova-sdk-js": "^1.0.3",
+    "openai": "^4.75.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
   },
   "devDependencies": {
-    "typescript": "^5.6.0",
     "@types/node": "^20.16.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.0",
     "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.0"
+    "eslint-config-next": "^14.2.0",
+    "postcss": "^8.4.49",
+    "prisma": "^5.19.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.6.0"
   }
 }

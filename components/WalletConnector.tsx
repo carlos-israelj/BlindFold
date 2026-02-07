@@ -6,7 +6,7 @@ import { useVault } from '@/contexts/VaultContext';
 
 export default function WalletConnector() {
   const { accountId, isConnected, disconnect, connect, setPortfolio, setLoading, setError } = useWallet();
-  const { initializeVault } = useVault();
+  const { initializeVault, setPortfolioCID } = useVault();
   const [inputAccountId, setInputAccountId] = useState('');
   const [connecting, setConnecting] = useState(false);
 
@@ -51,7 +51,39 @@ export default function WalletConnector() {
       const vaultData = await vaultResponse.json();
 
       if (vaultData.success) {
-        initializeVault(vaultData.data.vaultId);
+        const vaultId = vaultData.data.vaultId;
+        initializeVault(vaultId);
+
+        // Upload portfolio to vault automatically
+        try {
+          const uploadResponse = await fetch('/api/vault', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              accountId: inputAccountId,
+              action: 'upload',
+              vaultId: vaultId,
+              data: {
+                version: 1,
+                accountId: inputAccountId,
+                lastUpdated: new Date().toISOString(),
+                holdings: data.data.holdings || []
+              },
+              filename: 'portfolio.json'
+            }),
+          });
+
+          const uploadData = await uploadResponse.json();
+
+          if (uploadData.success) {
+            const portfolioCID = uploadData.data.cid;
+            setPortfolioCID(portfolioCID);
+            console.log('Portfolio uploaded to vault with CID:', portfolioCID);
+          }
+        } catch (uploadError) {
+          console.error('Failed to upload portfolio to vault:', uploadError);
+          // Continue anyway - vault is created
+        }
       }
 
     } catch (err: any) {

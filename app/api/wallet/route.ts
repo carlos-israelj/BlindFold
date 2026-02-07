@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchPortfolio } from '@/lib/near-rpc';
+import { fetchAccountFull, convertToPortfolioJSON } from '@/lib/fastnear';
+import { analyzePortfolio } from '@/lib/portfolio-analytics';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,11 +13,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const portfolio = await fetchPortfolio(accountId);
+    // Fetch complete account data from FastNEAR API
+    // This includes: NEAR balance, FTs, NFTs, staking positions
+    const accountData = await fetchAccountFull(accountId);
+
+    // Convert to portfolio JSON format
+    const portfolio = convertToPortfolioJSON(accountData);
+
+    // Calculate portfolio analytics (HHI, risk score, recommendations)
+    const analytics = analyzePortfolio(
+      portfolio.holdings.map((h: any) => ({
+        token: h.token,
+        balance: h.balance,
+        decimals: h.decimals,
+        valueUSD: h.price ? parseFloat(h.balance) * parseFloat(h.price) : undefined,
+      }))
+    );
 
     return NextResponse.json({
       success: true,
-      data: portfolio,
+      data: {
+        portfolio,
+        analytics,
+      },
     });
   } catch (error: any) {
     console.error('Wallet API error:', error);
