@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: blindfold-relayer
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: CONTRACT_ID
+        value: ecuador5.near
+      - key: NEAR_NETWORK
+        value: mainnet
+      - key: RELAYER_ACCOUNT_ID
+        value: ecuador5.near
+      - key: RELAYER_PRIVATE_KEY
+        sync: false  # Set this in Render dashboard (secret)
+      - key: NEAR_AI_API_KEY
+        sync: false  # Set this in Render dashboard (secret)
+      - key: NEAR_AI_MODEL
+        value: deepseek-ai/DeepSeek-V3.1
+      - key: POLL_INTERVAL_MS
+        value: 5000
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /

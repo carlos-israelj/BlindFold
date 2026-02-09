@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import crypto from 'crypto';
 import { ethers } from 'ethers';
 import dotenv from 'dotenv';
+import express from 'express';
 
 dotenv.config();
 
@@ -116,6 +117,15 @@ class TEERelayer {
     console.log(`   Question: "${request.question}"`);
 
     try {
+      // Mark request as processing
+      await this.account.call(
+        CONFIG.CONTRACT_ID,
+        'mark_processing',
+        { request_id: request.id },
+        { gas: '10000000000000' } // 10 TGas
+      );
+      console.log(`   ✓ Marked as processing`);
+
       // Build request body
       const requestBody = {
         model: CONFIG.NEAR_AI_MODEL,
@@ -184,16 +194,21 @@ class TEERelayer {
 
       console.log(`   ✓ Signature verified locally`);
 
-      // Call contract to provide response and store verification
-      await this.provideResponseToContract(
-        request.id,
-        responseText,
-        requestHash,
-        responseHash,
-        signatureData.signature,
-        signatureData.signing_address,
-        signatureData.signing_algo,
-        JSON.stringify({ chatId, model: CONFIG.NEAR_AI_MODEL })
+      // Call contract to store verification
+      await this.account.call(
+        CONFIG.CONTRACT_ID,
+        'store_verification',
+        {
+          request_id: request.id,
+          request_hash: requestHash,
+          response_hash: responseHash,
+          signature: signatureData.signature,
+          signing_address: signatureData.signing_address,
+          signing_algo: signatureData.signing_algo,
+          tee_attestation: JSON.stringify({ chatId, model: CONFIG.NEAR_AI_MODEL }),
+          response_text: responseText,
+        },
+        { gas: '30000000000000' } // 30 TGas
       );
 
       console.log(`   ✓ Response provided to contract`);
@@ -202,38 +217,6 @@ class TEERelayer {
     } catch (error) {
       console.error(`   ✗ Error processing request #${request.id}:`, error);
     }
-  }
-
-  /**
-   * Call contract to provide AI response and store verification
-   */
-  async provideResponseToContract(
-    requestId: number,
-    responseText: string,
-    requestHash: string,
-    responseHash: string,
-    signature: string,
-    signingAddress: string,
-    signingAlgo: string,
-    teeAttestation: string
-  ) {
-    await this.account.call(
-      CONFIG.CONTRACT_ID,
-      'provide_ai_response',
-      {
-        request_id: requestId,
-        response_text: responseText,
-        request_hash: requestHash,
-        response_hash: responseHash,
-        signature,
-        signing_address: signingAddress,
-        signing_algo: signingAlgo,
-        tee_attestation: teeAttestation,
-      },
-      {
-        gas: '30000000000000', // 30 TGas
-      }
-    );
   }
 
   /**
@@ -305,6 +288,38 @@ async function main() {
     process.exit(1);
   }
 
+  // Start health check HTTP server for Render
+  const app = express();
+  const PORT = process.env.PORT || 3000;
+
+  let relayerStatus = {
+    status: 'starting',
+    uptime: 0,
+    lastPoll: null as string | null,
+    processedRequests: 0,
+  };
+
+  app.get('/', (req, res) => {
+    res.json({
+      service: 'BlindFold TEE Relayer',
+      ...relayerStatus,
+      uptime: process.uptime(),
+    });
+  });
+
+  app.get('/health', (req, res) => {
+    res.json({
+      status: relayerStatus.status === 'running' ? 'healthy' : 'unhealthy',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  app.listen(PORT, () => {
+    console.log(`📊 Health check server running on port ${PORT}`);
+    relayerStatus.status = 'running';
+  });
+
+  // Start the relayer
   const relayer = new TEERelayer();
   await relayer.start();
 }
