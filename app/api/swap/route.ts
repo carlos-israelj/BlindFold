@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSwapQuote, executeSwap } from '@/lib/hot-kit';
+// TODO: HOT Kit can only be used in client components, not API routes
+// Move swap logic to client-side when implementing multi-chain swaps
+// import { getSwapQuote, executeSwap } from '@/lib/hot-kit';
 
 /**
- * GET /api/swap - Get swap quote
+ * GET /api/swap - Get swap quote (TEMPORARILY DISABLED - HOT Kit is client-only)
  */
 export async function GET(request: NextRequest) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: 'Swap endpoint temporarily disabled. HOT Kit integration in progress. Use client-side swap UI instead.'
+    },
+    { status: 501 }
+  );
+
+  /* ORIGINAL CODE - To be moved to client component:
+  try {
   try {
     const { searchParams } = new URL(request.url);
 
@@ -46,12 +58,23 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+  */
 }
 
 /**
- * POST /api/swap - Execute swap
+ * POST /api/swap - Execute swap (TEMPORARILY DISABLED - HOT Kit is client-only)
  */
 export async function POST(request: NextRequest) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: 'Swap endpoint temporarily disabled. HOT Kit integration in progress. Use client-side swap UI instead.'
+    },
+    { status: 501 }
+  );
+
+  /* ORIGINAL CODE - To be moved to client component:
+  try {
   try {
     const body = await request.json();
     const { fromChain, toChain, fromToken, toToken, amount, walletAddress, slippage } = body;
@@ -93,4 +116,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+  */
 }
