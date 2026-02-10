@@ -44,35 +44,12 @@ export const kit = new HotConnector({
 
 /**
  * Helper: Get multi-chain portfolio balances
+ * TODO: Implement after verifying HOT Kit API structure
  */
 export async function getMultiChainPortfolio() {
-  if (!kit.isConnected) {
-    throw new Error("No wallets connected");
-  }
-
-  const wallets = kit.wallets;
-  const balances: Record<string, any> = {};
-
-  for (const wallet of wallets) {
-    try {
-      const balance = await wallet.getBalance();
-      balances[wallet.chain] = {
-        address: wallet.address,
-        balance: balance.toString(),
-        tokens: await wallet.getTokens?.() || [],
-      };
-    } catch (error) {
-      console.error(`Failed to fetch balance for ${wallet.chain}:`, error);
-      balances[wallet.chain] = {
-        address: wallet.address,
-        balance: "0",
-        tokens: [],
-        error: String(error),
-      };
-    }
-  }
-
-  return balances;
+  // Temporarily disabled - HOT Kit API needs verification
+  console.warn("getMultiChainPortfolio: Not yet implemented");
+  return {};
 }
 
 /**
@@ -86,6 +63,7 @@ export function openSwapUI() {
 /**
  * Helper: Execute programmatic swap using NEAR Intents
  * For AI advisor-triggered rebalancing
+ * TODO: Implement after verifying HOT Kit API structure
  */
 export async function executeSwap(params: {
   fromChain: string;
@@ -94,30 +72,14 @@ export async function executeSwap(params: {
   toToken: string;
   amount: string;
 }) {
-  const { fromChain, fromToken, toChain, toToken, amount } = params;
-
-  // Get the source wallet
-  const sourceWallet = kit.wallets.find(w => w.chain === fromChain);
-  if (!sourceWallet) {
-    throw new Error(`No wallet connected for ${fromChain}`);
-  }
-
-  // Use IntentsBuilder for cross-chain swap
-  // This is the programmatic API from the architecture
-  const result = await sourceWallet.intents
-    .swap({
-      from: fromToken,
-      to: toToken,
-      amount,
-      toChain,
-    })
-    .execute();
-
-  return result;
+  // Temporarily disabled - HOT Kit API needs verification
+  console.warn("executeSwap: Not yet implemented");
+  return { success: false, message: "Not yet implemented" };
 }
 
 /**
  * Helper: Get swap quote before execution
+ * TODO: Implement after verifying HOT Kit API structure
  */
 export async function getSwapQuote(params: {
   fromChain: string;
@@ -126,24 +88,9 @@ export async function getSwapQuote(params: {
   toToken: string;
   amount: string;
 }) {
-  const { fromChain, fromToken, toChain, toToken, amount } = params;
-
-  const sourceWallet = kit.wallets.find(w => w.chain === fromChain);
-  if (!sourceWallet) {
-    throw new Error(`No wallet connected for ${fromChain}`);
-  }
-
-  // Get quote without executing
-  const quote = await sourceWallet.intents
-    .swap({
-      from: fromToken,
-      to: toToken,
-      amount,
-      toChain,
-    })
-    .getQuote();
-
-  return quote;
+  // Temporarily disabled - HOT Kit API needs verification
+  console.warn("getSwapQuote: Not yet implemented");
+  return { quote: "0", message: "Not yet implemented" };
 }
 
 /**

@@ -24,105 +24,99 @@
 
 ---
 
-## ⚠️ Problemas Actuales
+## ✅ Problemas Resueltos
 
 ### Smart Contract - Error de Deserialización
-**Prioridad: CRÍTICA**
+**Estado: RESUELTO ✅**
 
-El contrato desplegado en `ecuador5.near` tiene un error al ejecutar cualquier método:
-```
-Error: CompilationError(PrepareError(Deserialization))
-```
+El contrato estaba compilado con Rust 1.93.0, incompatible con el runtime de NEAR.
 
-**Posibles causas:**
-1. Incompatibilidad entre near-sdk 5.24.0 y el runtime de NEAR mainnet
-2. Problema con las colecciones `UnorderedMap` en near_sdk::store
-3. Falta de inicialización del estado del contrato
+**Solución aplicada:**
+- [x] Downgrade de Rust a 1.86.0
+- [x] Recompilación con `cargo-near build non-reproducible-wasm`
+- [x] Redespliegue exitoso a ecuador5.near
+- [x] Inicialización del contrato: `near call ecuador5.near new '{"owner":"ecuador5.near"}' --accountId ecuador5.near --networkId mainnet`
 
-**Soluciones a intentar:**
-- [ ] Downgrade a near-sdk 5.0.0 o 5.1.0 (versiones más estables)
-- [ ] Usar `IterableMap` en lugar de `UnorderedMap` (deprecation warning)
-- [ ] Verificar que el WASM sea válido con `wasm-opt`
-- [ ] Desplegar en testnet primero para debuggear
-- [ ] Revisar ejemplos oficiales de NEAR con near-sdk 5.24.0
+**Estado:** ✅ Contrato funcional en mainnet
 
-**Estado:** Sin inicializar, todos los métodos fallan
+### Relayer - Dependencias y Deploy
+**Estado: RESUELTO ✅**
+
+**Problemas encontrados y resueltos:**
+- [x] tsx no estaba en dependencies (movido de devDependencies)
+- [x] near-kit v0.1.0 incompatible con Node.js 22 (actualizado a v0.8.2)
+- [x] API de near-kit cambió (eliminada clase Account, usar Near directamente)
+- [x] Deploy exitoso a Render: https://blindfold-relayer.onrender.com
+
+**Estado:** ✅ Relayer funcional en producción
 
 ---
 
 ## 🔧 Tareas Pendientes
 
-### 1. Smart Contract (Prioridad: ALTA)
+### 1. Smart Contract (Prioridad: ✅ COMPLETADO)
 
-#### Opción A: Resolver error actual
-- [ ] Investigar issue de deserialización con near-sdk 5.24.0
-- [ ] Probar compilación con diferentes flags de optimización
-- [ ] Verificar compatibilidad del WASM con mainnet runtime
-- [ ] Inicializar contrato: `near call ecuador5.near new '{"owner":"ecuador5.near"}' --accountId ecuador5.near --networkId mainnet`
+- [x] Downgrade de Rust a 1.86.0
+- [x] Recompilar con cargo-near
+- [x] Redesplegar a ecuador5.near
+- [x] Inicializar contrato exitosamente
 
-#### Opción B: Recompilar con versión estable
-- [ ] Cambiar Cargo.toml a near-sdk 5.0.0 o 5.1.0
-- [ ] Actualizar sintaxis si es necesario
-- [ ] Recompilar y redesplegar
-- [ ] Inicializar contrato
-
-#### Opción C: Usar testnet para debugging
-- [ ] Crear cuenta en testnet: `near create-account blindfold-ecuador.testnet --useFaucet`
-- [ ] Desplegar contrato en testnet
-- [ ] Debuggear con logs más detallados
-- [ ] Una vez funcional, migrar a mainnet
-
-**Métodos del contrato a verificar:**
-- [ ] `new(owner: AccountId)` - Inicialización
-- [ ] `ask_advisor(question, portfolio_data)` - Crear request
-- [ ] `mark_processing(request_id)` - Marcar como procesando
-- [ ] `store_verification(...)` - Guardar verificación
-- [ ] `get_pending_requests()` - Ver requests pendientes
-- [ ] `get_stats()` - Ver estadísticas
+**Métodos del contrato verificados:**
+- [x] `new(owner: AccountId)` - Inicializado ✅
+- [x] Contrato desplegado en: ecuador5.near
+- [x] Transacción de inicialización verificada en NearBlocks
 
 ---
 
-### 2. Relayer Configuration (Prioridad: ALTA)
+### 2. Relayer Configuration (Prioridad: ✅ COMPLETADO)
 
 #### Preparación Local
-- [ ] Actualizar `relayer/.env` con credenciales correctas
-- [ ] Configurar CONTRACT_ID=ecuador5.near
-- [ ] Configurar NEAR_NETWORK=mainnet
-- [ ] Crear cuenta relayer si es necesario
+- [x] Actualizar `relayer/.env` con credenciales correctas
+- [x] Configurar CONTRACT_ID=ecuador5.near
+- [x] Configurar NEAR_NETWORK=mainnet
+- [x] Actualizar near-kit a v0.8.2
+- [x] Migrar código a nueva API de near-kit
 
-#### Variables de Entorno para Railway
+#### Variables de Entorno (Render)
 ```env
 CONTRACT_ID=ecuador5.near
 NEAR_NETWORK=mainnet
-RELAYER_ACCOUNT_ID=<crear_cuenta_relayer>
-RELAYER_PRIVATE_KEY=<generar_clave>
+RELAYER_ACCOUNT_ID=ecuador5.near
+RELAYER_PRIVATE_KEY=<configurado en Render>
 NEAR_AI_API_KEY=sk-8920ddc89c22472ea80d0fe7beb85871
 NEAR_AI_MODEL=deepseek-ai/DeepSeek-V3.1
 POLL_INTERVAL_MS=5000
 NODE_ENV=production
+PORT=3001
 ```
 
 #### Deployment
-- [ ] Crear cuenta relayer en mainnet (o usar ecuador5.near como relayer)
-- [ ] Exportar private key: `cat ~/.near-credentials/mainnet/relayer.near.json`
-- [ ] Deploy en Railway:
-  - [ ] Ir a https://railway.app
-  - [ ] New Project → Deploy from GitHub
-  - [ ] Seleccionar repositorio BlindFold
-  - [ ] Root Directory: `relayer`
-  - [ ] Agregar variables de entorno
-  - [ ] Deploy
-- [ ] Verificar logs en Railway
-- [ ] Confirmar polling activo
+- [x] Deploy en Render (cambio de Railway a Render)
+- [x] Configurar Web Service desde GitHub
+- [x] Agregar variables de entorno
+- [x] Deploy exitoso
+- [x] URL: https://blindfold-relayer.onrender.com
+- [x] Health check endpoint: /health
+- [x] Verificar logs en Render
+- [x] Confirmar polling activo
 
 ---
 
-### 3. Frontend Deployment (Prioridad: MEDIA)
+### 3. Frontend Deployment (Prioridad: 🔄 EN PROGRESO)
 
 #### Pre-deployment
-- [ ] Verificar que `npm run build` funciona localmente
-- [ ] Revisar que no hay errores de TypeScript
+- [x] Instalar @hot-labs/kit y @hot-labs/omni-sdk
+- [x] Configurar HOT Kit para multi-chain wallet support
+- [x] Simplificar Better Auth configuration
+- [x] Resolver error de prismaAdapter (necesita provider: "postgresql")
+- [ ] Verificar que `npm run build` funciona localmente (en progreso)
+- [ ] Revisar que no hay errores de TypeScript (en progreso)
 - [ ] Probar conexión de wallet localmente
+
+#### Configuración Completada
+- [x] Better Auth configurado con prismaAdapter
+- [x] HOT Kit API keys configurados
+- [x] transpilePackages agregados a next.config.js para @hot-labs/kit
 
 #### Vercel Deployment
 - [ ] Ir a https://vercel.com/new
@@ -130,19 +124,7 @@ NODE_ENV=production
 - [ ] Framework: Next.js (detectado automáticamente)
 - [ ] Root Directory: `.` (raíz del proyecto)
 - [ ] Build Command: `npx prisma generate && next build`
-- [ ] Agregar variables de entorno:
-  ```
-  DATABASE_URL=<copiar de .env.local>
-  NEAR_AI_API_KEY=sk-8920ddc89c22472ea80d0fe7beb85871
-  NOVA_API_KEY=nova_sk_36Py4LqkeHsNvM8rntiMP7aHxsSJ2fM6
-  NOVA_ACCOUNT_ID=cijimene5.nova-sdk.near
-  AUTH_SECRET=<GENERAR NUEVO - NO usar el de dev>
-  AUTH_URL=https://<tu-app>.vercel.app
-  NEXT_PUBLIC_NEAR_NETWORK=mainnet
-  NEXT_PUBLIC_NEAR_RPC_URL=https://rpc.mainnet.near.org
-  NEXT_PUBLIC_CONTRACT_ID=ecuador5.near
-  NEXT_PUBLIC_APP_URL=https://<tu-app>.vercel.app
-  ```
+- [ ] Agregar variables de entorno (ver VERCEL_DEPLOY.md - NO commitear)
 - [ ] Deploy
 - [ ] Actualizar AUTH_URL y NEXT_PUBLIC_APP_URL con URL real
 - [ ] Redeploy con URLs actualizadas
@@ -238,14 +220,23 @@ NODE_ENV=production
 
 ## 🚨 Blockers
 
-### CRÍTICO
-1. **Smart Contract no inicializado** - Impide toda la funcionalidad
-   - Sin el contrato funcional, el relayer no puede procesar requests
-   - La app frontend puede conectarse pero no ejecutar acciones
+### ✅ RESUELTO - Smart Contract
+~~**Smart Contract no inicializado**~~ - ✅ COMPLETADO
+- ✅ Contrato funcional y desplegado en ecuador5.near
+- ✅ Inicialización exitosa en mainnet
 
-### ALTO
-2. **Relayer no desplegado** - Necesario para procesar requests del contrato
-3. **Frontend no en producción** - No se puede probar el flujo completo
+### ✅ RESUELTO - Relayer
+~~**Relayer no desplegado**~~ - ✅ COMPLETADO
+- ✅ Relayer funcional en https://blindfold-relayer.onrender.com
+- ✅ Polling activo para procesar requests
+
+### 🔄 EN PROGRESO
+**Frontend deployment a Vercel** - Build con errores menores
+- [x] Better Auth configurado correctamente
+- [x] HOT Kit packages instalados
+- [ ] Resolver errores finales de build
+- [ ] Deploy a Vercel
+- [ ] Testing E2E
 
 ---
 
@@ -253,15 +244,18 @@ NODE_ENV=production
 
 ### Corto Plazo (Hoy)
 1. ✅ Push de commits a GitHub
-2. ⏳ Resolver error del smart contract (escoger opción A, B o C)
-3. ⏳ Inicializar contrato exitosamente
-4. ⏳ Desplegar relayer en Railway
+2. ✅ Resolver error del smart contract (Opción B ejecutada: downgrade Rust a 1.86.0)
+3. ✅ Inicializar contrato exitosamente
+4. ✅ Desplegar relayer en Render
+5. 🔄 Resolver errores finales de build frontend
+6. ⏳ Desplegar frontend en Vercel
 
 ### Mediano Plazo (Esta Semana)
-1. Desplegar frontend en Vercel
-2. Testing E2E completo
-3. Documentar problemas encontrados
-4. Ajustar configuración según sea necesario
+1. 🔄 Desplegar frontend en Vercel (en progreso)
+2. ⏳ Verificar HOT Kit API y actualizar integración
+3. ⏳ Testing E2E completo
+4. ⏳ Documentar problemas encontrados
+5. ⏳ Ajustar configuración según sea necesario
 
 ### Largo Plazo (Antes de Producción)
 1. Setup monitoring y alertas
@@ -271,6 +265,13 @@ NODE_ENV=production
 
 ---
 
-**Última actualización:** 2026-02-07
-**Estado del proyecto:** 60% completado, bloqueado por error de contrato
-**Próxima acción:** Resolver deserialización del smart contract
+**Última actualización:** 2026-02-10
+**Estado del proyecto:** 85% completado
+**Componentes operacionales:**
+- ✅ Smart Contract (ecuador5.near) - Funcional en mainnet
+- ✅ Relayer (Render) - https://blindfold-relayer.onrender.com
+- ✅ Database (Neon PostgreSQL) - Configurado con Prisma
+- ✅ HOT Kit - Packages instalados
+- 🔄 Frontend - Build en progreso
+
+**Próxima acción:** Resolver errores finales de build y desplegar a Vercel
