@@ -5,118 +5,158 @@
  * HOT KIT supports: NEAR, EVM, Solana, TON, Stellar, Cosmos, Bitcoin, and 30+ chains
  */
 
-// Note: HOT KIT SDK integration placeholder
-// The actual @hot-labs/sdk may not be published yet or may have different API
-// This is a reference implementation based on the architecture document
+import { HotConnector } from "@hot-labs/kit";
+import { defaultConnectors } from "@hot-labs/kit/defaults";
 
-export interface HotKitConfig {
-  appName: string;
-  chains: string[];
-  network: 'mainnet' | 'testnet';
+// Initialize HOT Kit connector as singleton
+export const kit = new HotConnector({
+  apiKey: process.env.NEXT_PUBLIC_HOT_API_KEY!,
+  connectors: defaultConnectors, // NEAR + EVM + Solana + TON + Stellar
+  walletConnect: {
+    projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "default-project-id",
+    metadata: {
+      name: "BlindFold",
+      description: "Privacy-First AI Financial Advisor - Your portfolio, encrypted in a vault. AI analyzes it in a secure enclave. Zero knowledge, maximum insight.",
+      url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+      icons: [`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/logo.png`],
+    },
+  },
+});
+
+/**
+ * React hook for HOT Kit state (uses MobX under the hood)
+ * Usage in components:
+ *
+ * import { observer } from "mobx-react-lite";
+ * import { kit } from "@/lib/hot-kit";
+ *
+ * const MyComponent = observer(() => {
+ *   const isConnected = kit.isConnected;
+ *   const wallets = kit.wallets;
+ *
+ *   return (
+ *     <button onClick={() => kit.connect()}>
+ *       {isConnected ? `Connected: ${wallets.length} wallets` : "Connect Wallets"}
+ *     </button>
+ *   );
+ * });
+ */
+
+/**
+ * Helper: Get multi-chain portfolio balances
+ */
+export async function getMultiChainPortfolio() {
+  if (!kit.isConnected) {
+    throw new Error("No wallets connected");
+  }
+
+  const wallets = kit.wallets;
+  const balances: Record<string, any> = {};
+
+  for (const wallet of wallets) {
+    try {
+      const balance = await wallet.getBalance();
+      balances[wallet.chain] = {
+        address: wallet.address,
+        balance: balance.toString(),
+        tokens: await wallet.getTokens?.() || [],
+      };
+    } catch (error) {
+      console.error(`Failed to fetch balance for ${wallet.chain}:`, error);
+      balances[wallet.chain] = {
+        address: wallet.address,
+        balance: "0",
+        tokens: [],
+        error: String(error),
+      };
+    }
+  }
+
+  return balances;
 }
 
-export interface HotWallet {
-  address: string;
-  chain: string;
-  publicKey?: string;
+/**
+ * Helper: Open HOT Kit built-in swap/bridge UI
+ * This is the simplest way to enable cross-chain swaps
+ */
+export function openSwapUI() {
+  kit.openBridge();
 }
 
-export interface SwapParams {
+/**
+ * Helper: Execute programmatic swap using NEAR Intents
+ * For AI advisor-triggered rebalancing
+ */
+export async function executeSwap(params: {
   fromChain: string;
-  toChain: string;
   fromToken: string;
+  toChain: string;
   toToken: string;
   amount: string;
-  slippage?: number;
-}
+}) {
+  const { fromChain, fromToken, toChain, toToken, amount } = params;
 
-export interface SwapQuote {
-  fromAmount: string;
-  toAmount: string;
-  rate: string;
-  fees: {
-    network: string;
-    protocol: string;
-  };
-  route: string[];
-  estimatedTime: number;
-}
+  // Get the source wallet
+  const sourceWallet = kit.wallets.find(w => w.chain === fromChain);
+  if (!sourceWallet) {
+    throw new Error(`No wallet connected for ${fromChain}`);
+  }
 
-/**
- * Initialize HOT KIT
- * This would normally import from @hot-labs/sdk
- */
-export function initHotKit(config: HotKitConfig) {
-  // Placeholder implementation
-  console.log('HOT KIT initialized with config:', config);
+  // Use IntentsBuilder for cross-chain swap
+  // This is the programmatic API from the architecture
+  const result = await sourceWallet.intents
+    .swap({
+      from: fromToken,
+      to: toToken,
+      amount,
+      toChain,
+    })
+    .execute();
 
-  return {
-    connect: async (): Promise<HotWallet[]> => {
-      // Would open HOT KIT modal for wallet connection
-      console.log('HOT KIT: Opening connection modal...');
-      throw new Error('HOT KIT SDK not yet integrated - placeholder only');
-    },
-    disconnect: async () => {
-      console.log('HOT KIT: Disconnecting wallets...');
-    },
-    getWallets: (): HotWallet[] => {
-      return [];
-    },
-    getBalances: async (wallets: HotWallet[]) => {
-      // Fetch balances across all connected chains
-      console.log('HOT KIT: Fetching balances for', wallets.length, 'wallets');
-      return {};
-    },
-  };
+  return result;
 }
 
 /**
- * Get swap quote using HOT Protocol
+ * Helper: Get swap quote before execution
  */
-export async function getSwapQuote(params: SwapParams): Promise<SwapQuote> {
-  // Placeholder - would call HOT Protocol API
-  console.log('HOT KIT: Getting swap quote for', params);
+export async function getSwapQuote(params: {
+  fromChain: string;
+  fromToken: string;
+  toChain: string;
+  toToken: string;
+  amount: string;
+}) {
+  const { fromChain, fromToken, toChain, toToken, amount } = params;
 
-  throw new Error('HOT Protocol swap quotes not yet integrated - placeholder only');
+  const sourceWallet = kit.wallets.find(w => w.chain === fromChain);
+  if (!sourceWallet) {
+    throw new Error(`No wallet connected for ${fromChain}`);
+  }
+
+  // Get quote without executing
+  const quote = await sourceWallet.intents
+    .swap({
+      from: fromToken,
+      to: toToken,
+      amount,
+      toChain,
+    })
+    .getQuote();
+
+  return quote;
 }
 
 /**
- * Execute swap using NEAR Intents
+ * Helper: Disconnect all wallets
  */
-export async function executeSwap(
-  params: SwapParams,
-  walletAddress: string
-): Promise<string> {
-  // Placeholder - would create and sign NEAR Intent transaction
-  console.log('HOT KIT: Executing swap from', params.fromChain, 'to', params.toChain);
-  console.log('HOT KIT: Wallet:', walletAddress);
-
-  throw new Error('HOT Protocol swaps not yet integrated - placeholder only');
-}
-
-/**
- * Multi-chain portfolio aggregation
- */
-export async function getMultiChainPortfolio(wallets: HotWallet[]): Promise<any> {
-  // Placeholder - would aggregate balances across all chains
-  console.log('HOT KIT: Fetching multi-chain portfolio for', wallets.length, 'wallets');
-
-  const portfolio = {
-    totalValueUSD: '0',
-    chains: wallets.map(w => ({
-      chain: w.chain,
-      address: w.address,
-      balance: '0',
-      tokens: [],
-    })),
-  };
-
-  return portfolio;
+export async function disconnectAll() {
+  await kit.disconnect();
 }
 
 /**
  * Reference documentation:
  * - HOT Protocol: https://hot.xyz
+ * - HOT Pay: https://pay.hot-labs.org
  * - NEAR Intents: https://docs.near.org/concepts/abstraction/chain-signatures
- * - Multi-chain support: EVM, Solana, TON, Stellar, Cosmos, Bitcoin
+ * - Supported chains: NEAR, Ethereum, BSC, Polygon, Arbitrum, Optimism, Base, Solana, TON, Stellar, Cosmos
  */
