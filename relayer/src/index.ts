@@ -60,25 +60,16 @@ interface AdvisorRequest {
 
 class TEERelayer {
   private near: Near;
-  private account: Account;
   private openai: OpenAI;
   private isProcessing = false;
 
   constructor() {
-    // Initialize NEAR connection
+    // Initialize NEAR connection with private key
     this.near = new Near({
-      networkId: CONFIG.NEAR_NETWORK,
-      nodeUrl: CONFIG.NEAR_NETWORK === 'mainnet'
-        ? 'https://rpc.mainnet.near.org'
-        : 'https://rpc.testnet.near.org',
+      network: CONFIG.NEAR_NETWORK,
+      privateKey: CONFIG.RELAYER_PRIVATE_KEY,
+      defaultSignerId: CONFIG.RELAYER_ACCOUNT_ID,
     });
-
-    // Initialize relayer account
-    this.account = new Account(
-      this.near,
-      CONFIG.RELAYER_ACCOUNT_ID,
-      CONFIG.RELAYER_PRIVATE_KEY
-    );
 
     // Initialize NEAR AI Cloud client
     this.openai = new OpenAI({
@@ -97,7 +88,7 @@ class TEERelayer {
    */
   async pollPendingRequests(): Promise<AdvisorRequest[]> {
     try {
-      const result = await this.account.view<AdvisorRequest[]>(
+      const result = await this.near.view(
         CONFIG.CONTRACT_ID,
         'get_pending_requests',
         {}
@@ -118,12 +109,14 @@ class TEERelayer {
 
     try {
       // Mark request as processing
-      await this.account.call(
-        CONFIG.CONTRACT_ID,
-        'mark_processing',
-        { request_id: request.id },
-        { gas: '10000000000000' } // 10 TGas
-      );
+      await this.near.transaction(CONFIG.RELAYER_ACCOUNT_ID)
+        .functionCall(
+          CONFIG.CONTRACT_ID,
+          'mark_processing',
+          { request_id: request.id },
+          { gas: '10 Tgas' }
+        )
+        .send();
       console.log(`   ✓ Marked as processing`);
 
       // Build request body
@@ -195,21 +188,23 @@ class TEERelayer {
       console.log(`   ✓ Signature verified locally`);
 
       // Call contract to store verification
-      await this.account.call(
-        CONFIG.CONTRACT_ID,
-        'store_verification',
-        {
-          request_id: request.id,
-          request_hash: requestHash,
-          response_hash: responseHash,
-          signature: signatureData.signature,
-          signing_address: signatureData.signing_address,
-          signing_algo: signatureData.signing_algo,
-          tee_attestation: JSON.stringify({ chatId, model: CONFIG.NEAR_AI_MODEL }),
-          response_text: responseText,
-        },
-        { gas: '30000000000000' } // 30 TGas
-      );
+      await this.near.transaction(CONFIG.RELAYER_ACCOUNT_ID)
+        .functionCall(
+          CONFIG.CONTRACT_ID,
+          'store_verification',
+          {
+            request_id: request.id,
+            request_hash: requestHash,
+            response_hash: responseHash,
+            signature: signatureData.signature,
+            signing_address: signatureData.signing_address,
+            signing_algo: signatureData.signing_algo,
+            tee_attestation: JSON.stringify({ chatId, model: CONFIG.NEAR_AI_MODEL }),
+            response_text: responseText,
+          },
+          { gas: '30 Tgas' }
+        )
+        .send();
 
       console.log(`   ✓ Response provided to contract`);
       console.log(`   ✓ Verification stored on-chain\n`);
