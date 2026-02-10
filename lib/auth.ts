@@ -1,13 +1,12 @@
 import { betterAuth } from 'better-auth';
-import { Database } from '@prisma/client';
-import { PrismaAdapter } from 'better-auth/adapters/prisma';
+import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { prisma } from './prisma';
 
 // NEP-413 signature verification
 import { verifyNep413Signature } from './near-auth';
 
 export const auth = betterAuth({
-  database: PrismaAdapter(prisma),
+  database: prismaAdapter(prisma),
   emailAndPassword: {
     enabled: false, // We only use wallet-based auth
   },
