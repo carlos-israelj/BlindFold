@@ -35,18 +35,29 @@ RESPONSE FORMAT:
 - End with one relevant observation or consideration
 - Keep responses under 200 words for daily check-ins`;
 
-export const KNOWN_TOKENS: Record<string, { contract: string; decimals: number }> = {
-  'NEAR': { contract: 'native', decimals: 24 },
+export const KNOWN_TOKENS: Record<string, { contract: string; decimals: number; symbol: string; name: string }> = {
+  'NEAR': {
+    contract: 'native',
+    decimals: 24,
+    symbol: 'NEAR',
+    name: 'NEAR Protocol'
+  },
   'USDC': {
     contract: 'a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48.factory.bridge.near',
-    decimals: 6
+    decimals: 6,
+    symbol: 'USDC',
+    name: 'USD Coin'
   },
   'USDT': {
     contract: 'dac17f958d2ee523a2206206994597c13d831ec7.factory.bridge.near',
-    decimals: 6
+    decimals: 6,
+    symbol: 'USDT',
+    name: 'Tether USD'
   },
   'wBTC': {
     contract: '2260fac5e5542a773aa44fbcfedf7c193bc2c599.factory.bridge.near',
-    decimals: 8
+    decimals: 8,
+    symbol: 'wBTC',
+    name: 'Wrapped Bitcoin'
   },
 };

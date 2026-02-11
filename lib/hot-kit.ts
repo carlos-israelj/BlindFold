@@ -97,7 +97,14 @@ export async function getSwapQuote(params: {
  * Helper: Disconnect all wallets
  */
 export async function disconnectAll() {
-  await kit.disconnect();
+  // Disconnect all connected wallets
+  // HOT Kit's disconnect() requires a wallet parameter
+  const wallets = [kit.near, kit.evm, kit.solana, kit.ton, kit.stellar].filter(Boolean);
+  for (const wallet of wallets) {
+    if (wallet) {
+      await kit.disconnect(wallet);
+    }
+  }
 }
 
 /**

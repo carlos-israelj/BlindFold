@@ -60,11 +60,13 @@ export async function fetchPortfolio(accountId: string): Promise<Portfolio> {
       contract: 'native',
       balance: nearBalance,
       decimals: 24,
+      symbol: 'NEAR',
+      name: 'NEAR Protocol',
     });
   }
 
   // Fetch known token balances
-  for (const [token, { contract, decimals }] of Object.entries(KNOWN_TOKENS)) {
+  for (const [token, { contract, decimals, symbol, name }] of Object.entries(KNOWN_TOKENS)) {
     if (contract === 'native') continue; // Already fetched NEAR
 
     const balance = await getTokenBalance(accountId, contract);
@@ -78,6 +80,8 @@ export async function fetchPortfolio(accountId: string): Promise<Portfolio> {
         contract,
         balance: formattedBalance,
         decimals,
+        symbol,
+        name,
       });
     }
   }

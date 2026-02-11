@@ -7,11 +7,18 @@ import * as borsh from 'borsh';
  * https://github.com/near/NEPs/blob/master/neps/nep-0413.md
  */
 
-interface Nep413Message {
+class Nep413Message {
   message: string;
   nonce: Buffer;
   recipient: string;
   callbackUrl?: string;
+
+  constructor(message: string, nonce: Buffer, recipient: string, callbackUrl?: string) {
+    this.message = message;
+    this.nonce = nonce;
+    this.recipient = recipient;
+    this.callbackUrl = callbackUrl;
+  }
 }
 
 interface VerifyNep413Params {
@@ -38,11 +45,11 @@ export async function verifyNep413Signature({
     const signatureBytes = Buffer.from(signature, 'base64');
 
     // Prepare the message payload following NEP-413 spec
-    const payload: Nep413Message = {
+    const payload = new Nep413Message(
       message,
-      nonce: Buffer.from(nonce, 'hex'),
-      recipient: 'blindfold.near', // Your contract/app identifier
-    };
+      Buffer.from(nonce, 'hex'),
+      'blindfold.near' // Your contract/app identifier
+    );
 
     // Serialize the payload using Borsh
     const schema = new Map([

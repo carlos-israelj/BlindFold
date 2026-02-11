@@ -235,7 +235,7 @@ export function generateRebalancingSuggestions(
 
     for (const holding of holdings) {
       const currentPercentage =
-        ((h.valueUSD || parseFloat(holding.balance)) / totalValue) * 100;
+        ((holding.valueUSD || parseFloat(holding.balance)) / totalValue) * 100;
       const targetPercentage = targetAllocation[holding.token] || 0;
       const deviation = currentPercentage - targetPercentage;
 
