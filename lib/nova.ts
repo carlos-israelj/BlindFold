@@ -2,9 +2,10 @@ import { NovaSdk } from 'nova-sdk-js';
 
 let novaClient: NovaSdk | null = null;
 
-export function createNovaClient(accountId: string): NovaSdk {
+export function createNovaClient(accountId: string): NovaSdk | null {
   if (!process.env.NOVA_API_KEY) {
-    throw new Error('NOVA_API_KEY is not set');
+    console.warn('NOVA_API_KEY is not set - vault features will be unavailable');
+    return null;
   }
 
   return new NovaSdk(accountId, {
@@ -12,7 +13,7 @@ export function createNovaClient(accountId: string): NovaSdk {
   });
 }
 
-export function getNovaClient(accountId: string): NovaSdk {
+export function getNovaClient(accountId: string): NovaSdk | null {
   if (!novaClient) {
     novaClient = createNovaClient(accountId);
   }
@@ -22,6 +23,10 @@ export function getNovaClient(accountId: string): NovaSdk {
 export async function createVault(accountId: string): Promise<string> {
   const nova = getNovaClient(accountId);
   const vaultId = `vault.${accountId}`;
+
+  if (!nova) {
+    throw new Error('NOVA vault service is not available. Please configure NOVA_API_KEY.');
+  }
 
   try {
     await nova.registerGroup(vaultId);
@@ -39,6 +44,10 @@ export async function uploadToVault(
   filename: string
 ): Promise<string> {
   const nova = getNovaClient(accountId);
+
+  if (!nova) {
+    throw new Error('NOVA vault service is not available. Please configure NOVA_API_KEY.');
+  }
 
   try {
     const result = await nova.upload(
@@ -60,6 +69,10 @@ export async function retrieveFromVault(
 ): Promise<any> {
   const nova = getNovaClient(accountId);
 
+  if (!nova) {
+    throw new Error('NOVA vault service is not available. Please configure NOVA_API_KEY.');
+  }
+
   try {
     const { data } = await nova.retrieve(vaultId, cid);
     return JSON.parse(data.toString());
@@ -74,6 +87,11 @@ export async function listVaultFiles(
   vaultId: string
 ): Promise<Array<{ cid: string; filename: string; size: number; uploadedAt: string }>> {
   const nova = getNovaClient(accountId);
+
+  if (!nova) {
+    console.warn('NOVA vault service is not available');
+    return [];
+  }
 
   try {
     // Check if NOVA SDK has a list method
@@ -98,6 +116,10 @@ export async function getVaultInfo(
 ): Promise<any> {
   const nova = getNovaClient(accountId);
 
+  if (!nova) {
+    throw new Error('NOVA vault service is not available. Please configure NOVA_API_KEY.');
+  }
+
   try {
     // Try to get group info
     if (typeof (nova as any).getGroupInfo === 'function') {
@@ -117,6 +139,10 @@ export async function getVaultInfo(
 
 export async function deleteVault(accountId: string, vaultId: string): Promise<void> {
   const nova = getNovaClient(accountId);
+
+  if (!nova) {
+    throw new Error('NOVA vault service is not available. Please configure NOVA_API_KEY.');
+  }
 
   try {
     // Note: NOVA SDK may not have deleteGroup method

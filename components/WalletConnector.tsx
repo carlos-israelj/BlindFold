@@ -38,52 +38,60 @@ export default function WalletConnector() {
 
       setPortfolio(data.data);
 
-      // Create or get vault
-      const vaultResponse = await fetch('/api/vault', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId: inputAccountId,
-          action: 'create'
-        }),
-      });
+      // Create or get vault (optional - app works without it)
+      try {
+        const vaultResponse = await fetch('/api/vault', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accountId: inputAccountId,
+            action: 'create'
+          }),
+        });
 
-      const vaultData = await vaultResponse.json();
+        const vaultData = await vaultResponse.json();
 
-      if (vaultData.success) {
-        const vaultId = vaultData.data.vaultId;
-        initializeVault(vaultId);
+        if (vaultData.success) {
+          const vaultId = vaultData.data.vaultId;
+          initializeVault(vaultId);
 
-        // Upload portfolio to vault automatically
-        try {
-          const uploadResponse = await fetch('/api/vault', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              accountId: inputAccountId,
-              action: 'upload',
-              vaultId: vaultId,
-              data: {
-                version: 1,
+          // Upload portfolio to vault automatically
+          try {
+            const uploadResponse = await fetch('/api/vault', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
                 accountId: inputAccountId,
-                lastUpdated: new Date().toISOString(),
-                holdings: data.data.holdings || []
-              },
-              filename: 'portfolio.json'
-            }),
-          });
+                action: 'upload',
+                vaultId: vaultId,
+                data: {
+                  version: 1,
+                  accountId: inputAccountId,
+                  lastUpdated: new Date().toISOString(),
+                  holdings: data.data.holdings || []
+                },
+                filename: 'portfolio.json'
+              }),
+            });
 
-          const uploadData = await uploadResponse.json();
+            const uploadData = await uploadResponse.json();
 
-          if (uploadData.success) {
-            const portfolioCID = uploadData.data.cid;
-            setPortfolioCID(portfolioCID);
-            console.log('Portfolio uploaded to vault with CID:', portfolioCID);
+            if (uploadData.success) {
+              const portfolioCID = uploadData.data.cid;
+              setPortfolioCID(portfolioCID);
+              console.log('Portfolio uploaded to vault with CID:', portfolioCID);
+            }
+          } catch (uploadError) {
+            console.error('Failed to upload portfolio to vault:', uploadError);
+            // Continue anyway - vault is created
           }
-        } catch (uploadError) {
-          console.error('Failed to upload portfolio to vault:', uploadError);
-          // Continue anyway - vault is created
+        } else {
+          console.warn('Vault service unavailable:', vaultData.error);
+          // Continue without vault - app still works
         }
+      } catch (vaultError) {
+        console.warn('Vault service unavailable, continuing without encryption:', vaultError);
+        // App works fine without vault - it's just an optional privacy feature
       }
 
     } catch (err: any) {
