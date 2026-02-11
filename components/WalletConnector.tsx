@@ -36,7 +36,7 @@ export default function WalletConnector() {
         throw new Error(data.error || 'Failed to fetch portfolio');
       }
 
-      setPortfolio(data.data);
+      setPortfolio(data.data.portfolio, data.data.analytics);
 
       // Create or get vault (optional - app works without it)
       try {
