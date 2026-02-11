@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate portfolio analytics (HHI, risk score, recommendations)
     const analytics = analyzePortfolio(
-      portfolio.holdings.map((h: any) => ({
+      (portfolio.holdings || []).map((h: any) => ({
         token: h.token,
         balance: h.balance,
         decimals: h.decimals,

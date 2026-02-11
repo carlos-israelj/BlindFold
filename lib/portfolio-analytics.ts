@@ -59,7 +59,8 @@ export function calculateHHI(holdings: PortfolioHolding[]): number {
  * Calculate portfolio analytics
  */
 export function analyzePortfolio(holdings: PortfolioHolding[]): PortfolioAnalytics {
-  if (holdings.length === 0) {
+  // Defensive: handle null/undefined/empty
+  if (!holdings || !Array.isArray(holdings) || holdings.length === 0) {
     return {
       hhi: 0,
       concentration: 'Low',
