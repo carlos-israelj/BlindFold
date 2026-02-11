@@ -6,7 +6,7 @@ import { calculateAllocation } from '@/lib/portfolio';
 export default function PortfolioSidebar() {
   const { portfolio, accountId } = useWallet();
 
-  if (!portfolio) {
+  if (!portfolio || !portfolio.holdings || !Array.isArray(portfolio.holdings)) {
     return (
       <div className="w-80 border-l border-gray-200 p-6 bg-gray-50">
         <h2 className="text-lg font-semibold mb-4">Portfolio</h2>
@@ -16,7 +16,7 @@ export default function PortfolioSidebar() {
   }
 
   const allocation = calculateAllocation(portfolio.holdings);
-  const totalValue = portfolio.holdings.reduce(
+  const totalValue = (portfolio.holdings || []).reduce(
     (sum, h) => sum + (h.valueUSD || 0),
     0
   );
