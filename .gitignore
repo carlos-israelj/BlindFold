@@ -35,3 +35,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# sensitive documentation files
+PENDING.md
+VERCEL_DEPLOY.md
+HOT_KIT_SETUP.md
+SETUP_GUIDE.md
+relayer/RENDER_DEPLOY.md
