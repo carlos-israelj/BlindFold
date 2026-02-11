@@ -5,7 +5,10 @@ export function formatPortfolioForAI(portfolio: Portfolio): string {
   output += `Last Updated: ${new Date(portfolio.lastUpdated).toLocaleString()}\n\n`;
   output += `Holdings:\n`;
 
-  portfolio.holdings.forEach((holding) => {
+  // Defensive check for holdings
+  const holdings = portfolio.holdings || [];
+
+  holdings.forEach((holding) => {
     output += `- ${holding.token}: ${holding.balance}`;
     if (holding.valueUSD) {
       output += ` ($${holding.valueUSD.toFixed(2)})`;
@@ -13,7 +16,7 @@ export function formatPortfolioForAI(portfolio: Portfolio): string {
     output += `\n`;
   });
 
-  const totalValue = portfolio.holdings.reduce(
+  const totalValue = holdings.reduce(
     (sum, h) => sum + (h.valueUSD || 0),
     0
   );
@@ -26,6 +29,11 @@ export function formatPortfolioForAI(portfolio: Portfolio): string {
 }
 
 export function calculateAllocation(holdings: TokenHolding[]): Record<string, number> {
+  // Defensive check for holdings
+  if (!holdings || !Array.isArray(holdings) || holdings.length === 0) {
+    return {};
+  }
+
   const totalValue = holdings.reduce((sum, h) => sum + (h.valueUSD || 0), 0);
 
   if (totalValue === 0) return {};
