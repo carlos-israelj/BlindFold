@@ -6,41 +6,26 @@
 
 const FASTNEAR_API_BASE = 'https://api.fastnear.com/v1';
 
-export interface FastNEARToken {
-  contract_id: string;
-  amount: string;
-  decimals: number;
-  symbol: string;
-  name: string;
-  icon?: string;
-  price?: string;
-}
-
-export interface FastNEARNFT {
-  contract_id: string;
-  token_id: string;
-  metadata?: {
-    title?: string;
-    description?: string;
-    media?: string;
-  };
-}
-
-export interface FastNEARStaking {
-  validator_id: string;
-  staked_balance: string;
-  unstaked_balance: string;
-  can_withdraw: boolean;
-  reward: string;
-}
-
 export interface FastNEARAccountData {
   account_id: string;
-  near_balance: string;
-  tokens: FastNEARToken[];
-  nfts: FastNEARNFT[];
-  staking: FastNEARStaking[];
-  total_value_usd?: string;
+  state: {
+    balance: string;
+    locked: string;
+    storage_bytes: number;
+  };
+  tokens: Array<{
+    contract_id: string;
+    balance: string;
+    last_update_block_height: number | null;
+  }>;
+  nfts: Array<{
+    contract_id: string;
+    last_update_block_height: number | null;
+  }>;
+  pools: Array<{
+    pool_id: string;
+    last_update_block_height: number | null;
+  }>;
 }
 
 /**
@@ -69,7 +54,7 @@ export async function fetchAccountFull(accountId: string): Promise<FastNEARAccou
 /**
  * Fetch just token balances (lighter request)
  */
-export async function fetchAccountTokens(accountId: string): Promise<FastNEARToken[]> {
+export async function fetchAccountTokens(accountId: string): Promise<any[]> {
   try {
     const response = await fetch(`${FASTNEAR_API_BASE}/account/${accountId}/ft`, {
       headers: {
@@ -118,11 +103,12 @@ export async function fetchAccountBalance(accountId: string): Promise<string> {
 export function convertToPortfolioJSON(accountData: FastNEARAccountData): any {
   const holdings = [];
 
-  // Add NEAR balance
+  // Add NEAR balance (convert from yoctoNEAR)
+  const nearBalance = (BigInt(accountData.state.balance) / BigInt(10 ** 24)).toString();
   holdings.push({
     token: 'NEAR',
     contract: 'native',
-    balance: accountData.near_balance,
+    balance: nearBalance,
     decimals: 24,
     symbol: 'NEAR',
     name: 'NEAR Protocol',
@@ -130,28 +116,29 @@ export function convertToPortfolioJSON(accountData: FastNEARAccountData): any {
 
   // Add fungible tokens
   for (const token of accountData.tokens) {
+    // Skip if balance is empty or null
+    if (!token.balance || token.balance === '') continue;
+
     holdings.push({
-      token: token.symbol,
+      token: token.contract_id.split('.')[0].toUpperCase(), // Extract token name
       contract: token.contract_id,
-      balance: token.amount,
-      decimals: token.decimals,
-      symbol: token.symbol,
-      name: token.name,
-      price: token.price,
+      balance: token.balance,
+      decimals: 18, // Default, we'd need to fetch metadata for exact decimals
+      symbol: token.contract_id.split('.')[0].toUpperCase(),
+      name: token.contract_id,
     });
   }
 
-  // Add staked NEAR
-  for (const stake of accountData.staking) {
+  // Add staking pools
+  for (const pool of accountData.pools) {
     holdings.push({
       token: 'NEAR (Staked)',
       contract: 'staking',
-      validator: stake.validator_id,
-      balance: stake.staked_balance,
+      validator: pool.pool_id,
+      balance: '0', // FastNEAR doesn't return staked amounts directly
       decimals: 24,
       symbol: 'stNEAR',
-      name: `Staked with ${stake.validator_id}`,
-      reward: stake.reward,
+      name: `Staked with ${pool.pool_id}`,
     });
   }
 
@@ -162,9 +149,9 @@ export function convertToPortfolioJSON(accountData: FastNEARAccountData): any {
     holdings,
     nfts: accountData.nfts.map(nft => ({
       contract: nft.contract_id,
-      tokenId: nft.token_id,
-      metadata: nft.metadata,
+      tokenId: 'unknown', // FastNEAR v1/full doesn't include token IDs
+      metadata: {},
     })),
-    totalValueUSD: accountData.total_value_usd,
+    totalValueUSD: undefined, // Not provided by FastNEAR
   };
 }
