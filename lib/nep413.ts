@@ -22,30 +22,29 @@ export async function signNEP413Message(
   publicKey: string;
 }> {
   try {
-    // For NEAR wallets, we need to request signature
-    // The wallet will display the message to the user
-    const messageString = JSON.stringify(message);
+    // Convert nonce from base64url string to Uint8Array (32 bytes)
+    const nonceBuffer = Buffer.from(message.nonce, 'base64url');
 
     // HOT Kit should expose a signMessage method
     // If not available, we'll need to use the underlying wallet adapter
     if (wallet.signMessage) {
-      const { signature, publicKey } = await wallet.signMessage({
-        message: messageString,
-        nonce: message.nonce,
+      const result = await wallet.signMessage({
+        message: message.message,
+        nonce: Array.from(nonceBuffer), // Convert to array for wallet compatibility
         recipient: message.recipient,
       });
 
       return {
-        signature: Buffer.from(signature).toString('base64'),
-        publicKey,
+        signature: typeof result.signature === 'string' ? result.signature : Buffer.from(result.signature).toString('base64'),
+        publicKey: result.publicKey,
       };
     }
 
     // Fallback: Try to use NEAR wallet selector directly
     if (wallet.wallet && wallet.wallet.signMessage) {
       const result = await wallet.wallet.signMessage({
-        message: messageString,
-        nonce: Buffer.from(message.nonce),
+        message: message.message,
+        nonce: nonceBuffer,
         recipient: message.recipient,
       });
 
