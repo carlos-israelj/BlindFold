@@ -16,6 +16,7 @@ const HotWalletConnect = observer(() => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [kit, setKit] = useState<any>(null);
+  const [hasHandledConnection, setHasHandledConnection] = useState(false);
 
   // Authenticate with Better Auth using NEP-413
   const authenticateWithNEAR = async (accountId: string, wallet: any) => {
@@ -78,10 +79,10 @@ const HotWalletConnect = observer(() => {
 
   // Monitor HOT Kit connection state
   useEffect(() => {
-    if (kit?.isConnected && kit.near) {
+    if (kit?.isConnected && kit.near?.accountId && !hasHandledConnection) {
       handleWalletConnected();
     }
-  }, [kit?.isConnected]);
+  }, [kit?.isConnected, kit?.near?.accountId, hasHandledConnection]);
 
   const handleWalletConnected = async () => {
     if (!kit.near) return;
@@ -89,6 +90,7 @@ const HotWalletConnect = observer(() => {
     const accountId = kit.near.accountId;
     if (!accountId) return;
 
+    setHasHandledConnection(true);
     setLoading(true);
     setIsConnecting(true);
 
@@ -204,6 +206,7 @@ const HotWalletConnect = observer(() => {
       if (kit.near) {
         await kit.disconnect(kit.near);
       }
+      setHasHandledConnection(false);
       contextDisconnect();
     } catch (err: any) {
       console.error('Disconnect error:', err);
