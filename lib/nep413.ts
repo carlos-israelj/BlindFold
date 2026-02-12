@@ -23,7 +23,9 @@ export async function signNEP413Message(
 }> {
   try {
     // Convert nonce from base64url string to Uint8Array (32 bytes)
-    const nonceBuffer = Buffer.from(message.nonce, 'base64url');
+    // base64url is base64 with - instead of + and _ instead of /, without padding
+    const base64 = message.nonce.replace(/-/g, '+').replace(/_/g, '/');
+    const nonceBuffer = Buffer.from(base64, 'base64');
 
     // HOT Kit should expose a signMessage method
     // If not available, we'll need to use the underlying wallet adapter
