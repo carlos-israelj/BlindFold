@@ -79,25 +79,32 @@ const HotWalletConnect = observer(() => {
 
   // Monitor HOT Kit connection state
   useEffect(() => {
+    // HOT Kit uses 'address' property, not 'accountId'
+    const nearAddress = kit?.near?.address || kit?.near?.accountId;
+
     console.log('HOT Kit state:', {
       isConnected: kit?.isConnected,
       hasNear: !!kit?.near,
+      address: kit?.near?.address,
       accountId: kit?.near?.accountId,
+      nearAddress,
       hasHandledConnection
     });
 
-    if (kit?.isConnected && kit.near?.accountId && !hasHandledConnection) {
-      console.log('Triggering handleWalletConnected for:', kit.near.accountId);
+    if (kit?.near && nearAddress && !hasHandledConnection) {
+      console.log('Triggering handleWalletConnected for:', nearAddress);
       handleWalletConnected();
     }
-  }, [kit?.isConnected, kit?.near?.accountId, hasHandledConnection]);
+  }, [kit?.near, kit?.near?.address, kit?.near?.accountId, hasHandledConnection]);
 
   const handleWalletConnected = async () => {
     if (!kit.near) return;
 
-    const accountId = kit.near.accountId;
+    // HOT Kit uses 'address' property for NEAR accounts
+    const accountId = kit.near.address || kit.near.accountId;
     if (!accountId) return;
 
+    console.log('handleWalletConnected starting for:', accountId);
     setHasHandledConnection(true);
     setLoading(true);
     setIsConnecting(true);
@@ -206,9 +213,10 @@ const HotWalletConnect = observer(() => {
       // HOT Kit updates isConnected asynchronously after connect() resolves
       // Wait a bit and check again, or let the useEffect handle it
       setTimeout(() => {
-        console.log('After timeout - Connected:', kit.isConnected, 'accountId:', kit.near?.accountId);
+        const nearAddress = kit.near?.address || kit.near?.accountId;
+        console.log('After timeout - Connected:', kit.isConnected, 'address:', kit.near?.address, 'accountId:', kit.near?.accountId);
         console.log('Full kit.near object:', kit.near);
-        if (!kit.isConnected && !kit.near?.accountId) {
+        if (!kit.near || !nearAddress) {
           console.log('No wallet connected after timeout, resetting state');
           setIsConnecting(false);
         }
@@ -246,7 +254,7 @@ const HotWalletConnect = observer(() => {
 
   return (
     <div className="space-y-4">
-      {!kit.isConnected ? (
+      {!kit.near ? (
         <button
           onClick={handleConnect}
           disabled={isConnecting || isAuthenticating}
@@ -261,7 +269,7 @@ const HotWalletConnect = observer(() => {
               <div>
                 <div className="text-sm text-gray-600">Connected</div>
                 <div className="font-mono text-sm font-semibold text-gray-900 break-all">
-                  {kit.near?.accountId || 'Unknown'}
+                  {kit.near?.address || kit.near?.accountId || 'Unknown'}
                 </div>
               </div>
               <div className="px-3 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full">
