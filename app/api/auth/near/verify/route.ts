@@ -25,27 +25,40 @@ async function verifyNEP413Signature(data: NEP413Signature): Promise<boolean> {
   try {
     const { publicKey, signature, message } = data;
 
-    // NEP-413: The wallet signs only the message text, not the full object
-    // The message format is: "message text"
-    const messageBuffer = Buffer.from(message.message, 'utf-8');
-
-    // Parse the public key
+    // Parse the public key first
     const pubKey = PublicKey.fromString(publicKey);
 
     // Decode signature from base64
     const signatureBuffer = Buffer.from(signature, 'base64');
 
-    // Verify signature
-    const isValid = pubKey.verify(messageBuffer, signatureBuffer);
+    // NEP-413: Try different message formats to find which one the wallet signed
 
-    console.log('NEP-413 verification:', {
+    // Format 1: Plain message text
+    const messageBuffer1 = Buffer.from(message.message, 'utf-8');
+    const isValid1 = pubKey.verify(messageBuffer1, signatureBuffer);
+
+    // Format 2: Stringified JSON of the entire message object
+    const messageBuffer2 = Buffer.from(JSON.stringify(message), 'utf-8');
+    const isValid2 = pubKey.verify(messageBuffer2, signatureBuffer);
+
+    // Format 3: NEP-413 tag + message (standard format)
+    const nep413Tag = Buffer.from([0x4e, 0x45, 0x50, 0x34, 0x31, 0x33]); // "NEP413" in hex
+    const messageBuffer3 = Buffer.concat([nep413Tag, messageBuffer1]);
+    const isValid3 = pubKey.verify(messageBuffer3, signatureBuffer);
+
+    console.log('NEP-413 verification attempts:', {
       message: message.message,
       publicKey,
       signatureLength: signatureBuffer.length,
-      isValid
+      format1_plainText: isValid1,
+      format2_jsonStringify: isValid2,
+      format3_nep413Tag: isValid3,
+      messageBuffer1Hex: messageBuffer1.toString('hex').substring(0, 40) + '...',
+      messageBuffer2Hex: messageBuffer2.toString('hex').substring(0, 40) + '...',
+      messageBuffer3Hex: messageBuffer3.toString('hex').substring(0, 40) + '...',
     });
 
-    return isValid;
+    return isValid1 || isValid2 || isValid3;
   } catch (error) {
     console.error('NEP-413 signature verification failed:', error);
     return false;
