@@ -25,9 +25,9 @@ async function verifyNEP413Signature(data: NEP413Signature): Promise<boolean> {
   try {
     const { publicKey, signature, message } = data;
 
-    // Reconstruct the message that was signed
-    const messageString = JSON.stringify(message);
-    const messageBuffer = Buffer.from(messageString, 'utf-8');
+    // NEP-413: The wallet signs only the message text, not the full object
+    // The message format is: "message text"
+    const messageBuffer = Buffer.from(message.message, 'utf-8');
 
     // Parse the public key
     const pubKey = PublicKey.fromString(publicKey);
@@ -37,6 +37,13 @@ async function verifyNEP413Signature(data: NEP413Signature): Promise<boolean> {
 
     // Verify signature
     const isValid = pubKey.verify(messageBuffer, signatureBuffer);
+
+    console.log('NEP-413 verification:', {
+      message: message.message,
+      publicKey,
+      signatureLength: signatureBuffer.length,
+      isValid
+    });
 
     return isValid;
   } catch (error) {
