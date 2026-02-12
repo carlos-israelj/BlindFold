@@ -6,6 +6,7 @@ import { useWallet } from '@/contexts/WalletContext';
 import { useVault } from '@/contexts/VaultContext';
 import ChatInterface from '@/components/ChatInterface';
 import PortfolioSidebar from '@/components/PortfolioSidebar';
+import NovaSetupBanner from '@/components/NovaSetupBanner';
 import Link from 'next/link';
 
 export default function ChatPage() {
@@ -32,6 +33,9 @@ export default function ChatPage() {
 
   return (
     <div className="h-screen flex flex-col">
+      {/* NOVA Setup Banner */}
+      <NovaSetupBanner />
+
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
