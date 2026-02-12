@@ -23,6 +23,15 @@ const nextConfig = {
       },
     });
 
+    // Externalize problematic Solana/Anchor packages on server
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push({
+        '@solana/web3.js': 'commonjs @solana/web3.js',
+        '@coral-xyz/anchor': 'commonjs @coral-xyz/anchor',
+      });
+    }
+
     return config;
   },
 }
