@@ -31,31 +31,53 @@ async function verifyNEP413Signature(data: NEP413Signature): Promise<boolean> {
     // Decode signature from base64
     const signatureBuffer = Buffer.from(signature, 'base64');
 
-    // NEP-413: Try different message formats to find which one the wallet signed
+    // NEP-413 standard: The message should be prefixed with a tag
+    // According to NEP-413, wallets should sign:
+    // 2^31 + (message.length as u32 little-endian) + message + nonce (32 bytes) + recipient + callbackUrl
 
-    // Format 1: Plain message text
+    // Try Format 1: Just the plain message text
     const messageBuffer1 = Buffer.from(message.message, 'utf-8');
     const isValid1 = pubKey.verify(messageBuffer1, signatureBuffer);
 
-    // Format 2: Stringified JSON of the entire message object
-    const messageBuffer2 = Buffer.from(JSON.stringify(message), 'utf-8');
+    // Try Format 2: NEP-413 compliant format
+    // Tag (u32): 2147483648 + message length
+    const messageText = message.message;
+    const nonceBuffer = Buffer.from(message.nonce.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+    const recipientBuffer = Buffer.from(message.recipient, 'utf-8');
+
+    const tag = Buffer.alloc(4);
+    tag.writeUInt32LE(2147483648 + messageText.length, 0);
+
+    const messageBuffer2 = Buffer.concat([
+      tag,
+      Buffer.from(messageText, 'utf-8'),
+      nonceBuffer,
+      recipientBuffer
+    ]);
     const isValid2 = pubKey.verify(messageBuffer2, signatureBuffer);
 
-    // Format 3: NEP-413 tag + message (standard format)
-    const nep413Tag = Buffer.from([0x4e, 0x45, 0x50, 0x34, 0x31, 0x33]); // "NEP413" in hex
-    const messageBuffer3 = Buffer.concat([nep413Tag, messageBuffer1]);
+    // Try Format 3: With callback URL
+    const callbackBuffer = message.callbackUrl ? Buffer.from(message.callbackUrl, 'utf-8') : Buffer.alloc(0);
+    const messageBuffer3 = Buffer.concat([
+      tag,
+      Buffer.from(messageText, 'utf-8'),
+      nonceBuffer,
+      recipientBuffer,
+      callbackBuffer
+    ]);
     const isValid3 = pubKey.verify(messageBuffer3, signatureBuffer);
 
     console.log('NEP-413 verification attempts:', {
       message: message.message,
       publicKey,
       signatureLength: signatureBuffer.length,
+      nonceLength: nonceBuffer.length,
       format1_plainText: isValid1,
-      format2_jsonStringify: isValid2,
-      format3_nep413Tag: isValid3,
-      messageBuffer1Hex: messageBuffer1.toString('hex').substring(0, 40) + '...',
-      messageBuffer2Hex: messageBuffer2.toString('hex').substring(0, 40) + '...',
-      messageBuffer3Hex: messageBuffer3.toString('hex').substring(0, 40) + '...',
+      format2_nep413Standard: isValid2,
+      format3_withCallback: isValid3,
+      tag: tag.toString('hex'),
+      messageBuffer2Hex: messageBuffer2.toString('hex').substring(0, 60) + '...',
+      messageBuffer3Hex: messageBuffer3.toString('hex').substring(0, 60) + '...',
     });
 
     return isValid1 || isValid2 || isValid3;
