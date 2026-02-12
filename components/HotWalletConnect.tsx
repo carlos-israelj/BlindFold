@@ -184,9 +184,16 @@ const HotWalletConnect = observer(() => {
     setIsConnecting(true);
     try {
       await kit.connect();
+      // If connect resolves but no wallet is connected, reset state
+      if (!kit.isConnected) {
+        setIsConnecting(false);
+      }
     } catch (err: any) {
       console.error('HOT Kit connect error:', err);
-      setError(err.message || 'Failed to open wallet selector');
+      // Only show error if it's not a user cancellation
+      if (err.message && !err.message.toLowerCase().includes('cancel')) {
+        setError(err.message || 'Failed to open wallet selector');
+      }
       setIsConnecting(false);
     }
   };
