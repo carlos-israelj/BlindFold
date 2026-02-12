@@ -60,9 +60,23 @@ export async function POST(req: NextRequest) {
   try {
     const signatureData: NEP413Signature = await req.json();
 
+    console.log('[VERIFY] Received signature data:', {
+      accountId: signatureData.accountId,
+      publicKey: signatureData.publicKey?.substring(0, 20) + '...',
+      signature: signatureData.signature?.substring(0, 20) + '...',
+      message: signatureData.message,
+    });
+
     // Verify nonce matches
     const storedNonce = req.cookies.get('near_nonce')?.value;
+    console.log('[VERIFY] Nonce comparison:', {
+      storedNonce: storedNonce?.substring(0, 10) + '...',
+      receivedNonce: signatureData.message.nonce?.substring(0, 10) + '...',
+      match: storedNonce === signatureData.message.nonce
+    });
+
     if (!storedNonce || storedNonce !== signatureData.message.nonce) {
+      console.error('[VERIFY] Nonce mismatch or missing');
       return NextResponse.json(
         { error: 'Invalid or expired nonce' },
         { status: 400 }

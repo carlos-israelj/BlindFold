@@ -22,19 +22,28 @@ export async function signNEP413Message(
   publicKey: string;
 }> {
   try {
+    console.log('[NEP-413] Starting sign process');
+    console.log('[NEP-413] Wallet object keys:', Object.keys(wallet));
+    console.log('[NEP-413] Has signMessage?', typeof wallet.signMessage);
+    console.log('[NEP-413] Has wallet.wallet?', !!wallet.wallet);
+    console.log('[NEP-413] Message to sign:', message);
+
     // Convert nonce from base64url string to Uint8Array (32 bytes)
     // base64url is base64 with - instead of + and _ instead of /, without padding
     const base64 = message.nonce.replace(/-/g, '+').replace(/_/g, '/');
     const nonceBuffer = Buffer.from(base64, 'base64');
+    console.log('[NEP-413] Nonce buffer length:', nonceBuffer.length);
 
     // HOT Kit should expose a signMessage method
     // If not available, we'll need to use the underlying wallet adapter
     if (wallet.signMessage) {
+      console.log('[NEP-413] Using wallet.signMessage()');
       const result = await wallet.signMessage({
         message: message.message,
         nonce: Array.from(nonceBuffer), // Convert to array for wallet compatibility
         recipient: message.recipient,
       });
+      console.log('[NEP-413] Sign result:', result);
 
       return {
         signature: typeof result.signature === 'string' ? result.signature : Buffer.from(result.signature).toString('base64'),
@@ -44,11 +53,13 @@ export async function signNEP413Message(
 
     // Fallback: Try to use NEAR wallet selector directly
     if (wallet.wallet && wallet.wallet.signMessage) {
+      console.log('[NEP-413] Using wallet.wallet.signMessage()');
       const result = await wallet.wallet.signMessage({
         message: message.message,
         nonce: nonceBuffer,
         recipient: message.recipient,
       });
+      console.log('[NEP-413] Sign result:', result);
 
       return {
         signature: Buffer.from(result.signature).toString('base64'),
