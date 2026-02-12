@@ -25,6 +25,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   });
 
   const connect = useCallback((accountId: string) => {
+    console.log('WalletContext.connect() called with accountId:', accountId);
     setState((prev) => ({
       ...prev,
       accountId,

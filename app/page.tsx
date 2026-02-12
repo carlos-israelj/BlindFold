@@ -21,7 +21,9 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
+    console.log('Home page - isConnected:', isConnected);
     if (isConnected) {
+      console.log('Redirecting to /chat...');
       router.push('/chat');
     }
   }, [isConnected, router]);

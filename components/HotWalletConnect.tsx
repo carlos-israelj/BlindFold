@@ -79,7 +79,15 @@ const HotWalletConnect = observer(() => {
 
   // Monitor HOT Kit connection state
   useEffect(() => {
+    console.log('HOT Kit state:', {
+      isConnected: kit?.isConnected,
+      hasNear: !!kit?.near,
+      accountId: kit?.near?.accountId,
+      hasHandledConnection
+    });
+
     if (kit?.isConnected && kit.near?.accountId && !hasHandledConnection) {
+      console.log('Triggering handleWalletConnected for:', kit.near.accountId);
       handleWalletConnected();
     }
   }, [kit?.isConnected, kit?.near?.accountId, hasHandledConnection]);
@@ -184,10 +192,13 @@ const HotWalletConnect = observer(() => {
   const handleConnect = async () => {
     if (!kit) return;
     setIsConnecting(true);
+    console.log('Starting wallet connection...');
     try {
       await kit.connect();
+      console.log('kit.connect() resolved. Connected:', kit.isConnected);
       // If connect resolves but no wallet is connected, reset state
       if (!kit.isConnected) {
+        console.log('No wallet connected after kit.connect(), resetting state');
         setIsConnecting(false);
       }
     } catch (err: any) {
