@@ -21,6 +21,13 @@ export const auth = betterAuth({
     window: 60, // 1 minute
     max: 100, // 100 requests per minute
   },
+  advanced: {
+    cookiePrefix: 'blindfold',
+    useSecureCookies: process.env.NODE_ENV === 'production',
+  },
+  trustedOrigins: [
+    process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+  ],
 });
 
 export type Session = typeof auth.$Infer.Session.session;

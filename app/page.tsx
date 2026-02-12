@@ -1,10 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import WalletConnector from '@/components/WalletConnector';
+import dynamic from 'next/dynamic';
 import { useWallet } from '@/contexts/WalletContext';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+
+// Dynamically import HotWalletConnect to avoid build-time HOT Kit imports
+const HotWalletConnect = dynamic(() => import('@/components/HotWalletConnect'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full px-6 py-3 text-center text-gray-500 bg-gray-100 rounded-lg">
+      Loading wallet connector...
+    </div>
+  ),
+});
 
 export default function Home() {
   const { isConnected, error } = useWallet();
@@ -69,9 +79,9 @@ export default function Home() {
             {/* Wallet Connection */}
             <div className="border-t border-gray-200 pt-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Connect your NEAR wallet to get started
+                Connect your wallet to get started
               </h3>
-              <WalletConnector />
+              <HotWalletConnect />
               {error && (
                 <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                   {error}

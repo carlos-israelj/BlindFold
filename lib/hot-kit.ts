@@ -1,27 +1,44 @@
 /**
- * HOT KIT Integration
+ * HOT KIT Integration - Client-side only
  * Multi-chain wallet connection and swap functionality
  *
  * HOT KIT supports: NEAR, EVM, Solana, TON, Stellar, Cosmos, Bitcoin, and 30+ chains
+ *
+ * IMPORTANT: This uses dynamic imports to avoid Next.js build issues with ESM modules.
+ * The kit instance is only created in the browser.
  */
 
-import { HotConnector } from "@hot-labs/kit";
-import { defaultConnectors } from "@hot-labs/kit/defaults";
+let kitInstance: any = null;
 
-// Initialize HOT Kit connector as singleton
-export const kit = new HotConnector({
-  apiKey: process.env.NEXT_PUBLIC_HOT_API_KEY!,
-  connectors: defaultConnectors, // NEAR + EVM + Solana + TON + Stellar
-  walletConnect: {
-    projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "default-project-id",
-    metadata: {
-      name: "BlindFold",
-      description: "Privacy-First AI Financial Advisor - Your portfolio, encrypted in a vault. AI analyzes it in a secure enclave. Zero knowledge, maximum insight.",
-      url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-      icons: [`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/logo.png`],
+/**
+ * Get or create the HOT Kit singleton instance
+ * This uses dynamic import to ensure it only runs in the browser
+ */
+export async function getKit(): Promise<any> {
+  // Return existing instance if available
+  if (kitInstance) return kitInstance;
+
+  // Dynamic import to avoid SSR/build issues
+  const { HotConnector } = await import("@hot-labs/kit");
+  const { defaultConnectors } = await import("@hot-labs/kit/defaults");
+
+  // Create singleton instance
+  kitInstance = new HotConnector({
+    apiKey: process.env.NEXT_PUBLIC_HOT_API_KEY!,
+    connectors: defaultConnectors, // NEAR + EVM + Solana + TON + Stellar
+    walletConnect: {
+      projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "default-project-id",
+      metadata: {
+        name: "BlindFold",
+        description: "Privacy-First AI Financial Advisor - Your portfolio, encrypted in a vault. AI analyzes it in a secure enclave. Zero knowledge, maximum insight.",
+        url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+        icons: [`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/logo.png`],
+      },
     },
-  },
-});
+  });
+
+  return kitInstance;
+}
 
 /**
  * React hook for HOT Kit state (uses MobX under the hood)
@@ -56,7 +73,8 @@ export async function getMultiChainPortfolio() {
  * Helper: Open HOT Kit built-in swap/bridge UI
  * This is the simplest way to enable cross-chain swaps
  */
-export function openSwapUI() {
+export async function openSwapUI() {
+  const kit = await getKit();
   kit.openBridge();
 }
 
@@ -97,6 +115,7 @@ export async function getSwapQuote(params: {
  * Helper: Disconnect all wallets
  */
 export async function disconnectAll() {
+  const kit = await getKit();
   // Disconnect all connected wallets
   // HOT Kit's disconnect() requires a wallet parameter
   const wallets = [kit.near, kit.evm, kit.solana, kit.ton, kit.stellar].filter(Boolean);
