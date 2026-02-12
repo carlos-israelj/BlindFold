@@ -6,17 +6,17 @@ import { useVault } from '@/contexts/VaultContext';
 import { useEffect, useState } from 'react';
 import { getNEARChallenge, signInWithNEAR } from '@/lib/auth-client';
 import { signNEP413Message } from '@/lib/nep413';
-
-// Use any type to avoid importing HOT Kit types during build
-let getKit: any = null;
+import NovaSetupModal from './NovaSetupModal';
 
 const HotWalletConnect = observer(() => {
-  const { connect, setPortfolio, setLoading, setError, disconnect: contextDisconnect } = useWallet();
+  const { connect, setPortfolio, setLoading, setError, disconnect: contextDisconnect, accountId } = useWallet();
   const { initializeVault, setPortfolioCID } = useVault();
   const [isConnecting, setIsConnecting] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [kit, setKit] = useState<any>(null);
   const [hasHandledConnection, setHasHandledConnection] = useState(false);
+  const [showNovaSetup, setShowNovaSetup] = useState(false);
+  const [hasNovaApiKey, setHasNovaApiKey] = useState(false);
 
   // Authenticate with Better Auth using NEP-413
   const authenticateWithNEAR = async (accountId: string, wallet: any) => {
@@ -179,11 +179,29 @@ const HotWalletConnect = observer(() => {
             // Continue anyway - vault is created
           }
         } else {
-          console.warn('Vault service unavailable:', vaultData.error);
+          // Check if it's a NOVA API key missing error
+          if (vaultData.error?.includes('save your NOVA API key first') ||
+              vaultData.error?.includes('Account not found') ||
+              vaultData.error?.includes('401')) {
+            console.info('ℹ️ NOVA Vault unavailable: API key not configured');
+            // Show setup modal
+            setShowNovaSetup(true);
+          } else {
+            console.warn('⚠️ Vault service unavailable:', vaultData.error);
+          }
           // Continue without vault - app still works
         }
-      } catch (vaultError) {
-        console.warn('Vault service unavailable, continuing without encryption:', vaultError);
+      } catch (vaultError: any) {
+        // Check if it's a NOVA API key missing error
+        if (vaultError.message?.includes('save your NOVA API key first') ||
+            vaultError.message?.includes('Account not found') ||
+            vaultError.message?.includes('401')) {
+          console.info('ℹ️ NOVA Vault unavailable: API key not configured');
+          // Show setup modal
+          setShowNovaSetup(true);
+        } else {
+          console.warn('⚠️ Vault service unavailable, continuing without encryption:', vaultError);
+        }
         // App works fine without vault - it's just an optional privacy feature
       }
 
@@ -252,16 +270,51 @@ const HotWalletConnect = observer(() => {
     );
   }
 
+  const handleNovaSetupSuccess = async () => {
+    setShowNovaSetup(false);
+    setHasNovaApiKey(true);
+
+    // Retry vault creation
+    if (accountId) {
+      try {
+        const vaultResponse = await fetch('/api/vault', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accountId,
+            action: 'create'
+          }),
+        });
+
+        const vaultData = await vaultResponse.json();
+        if (vaultData.success) {
+          initializeVault(vaultData.data.vaultId);
+          console.log('✅ Vault created successfully after API key setup');
+        }
+      } catch (error) {
+        console.error('Failed to create vault after API key setup:', error);
+      }
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      {!kit.near ? (
-        <button
-          onClick={handleConnect}
-          disabled={isConnecting || isAuthenticating}
-          className="w-full px-6 py-3 text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 transition-all font-semibold"
-        >
-          {isAuthenticating ? 'Authenticating...' : isConnecting ? 'Connecting...' : 'Connect Wallet'}
-        </button>
+    <>
+      <NovaSetupModal
+        isOpen={showNovaSetup}
+        onClose={() => setShowNovaSetup(false)}
+        onSuccess={handleNovaSetupSuccess}
+        accountId={accountId || ''}
+      />
+
+      <div className="space-y-4">
+        {!kit.near ? (
+          <button
+            onClick={handleConnect}
+            disabled={isConnecting || isAuthenticating}
+            className="w-full px-6 py-3 text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 transition-all font-semibold"
+          >
+            {isAuthenticating ? 'Authenticating...' : isConnecting ? 'Connecting...' : 'Connect Wallet'}
+          </button>
       ) : (
         <div className="space-y-3">
           <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -320,11 +373,12 @@ const HotWalletConnect = observer(() => {
         </div>
       )}
 
-      {/* Multi-chain support notice */}
-      <div className="text-xs text-gray-500 text-center">
-        Supports NEAR, Ethereum, Solana, TON, Stellar, and 30+ chains
+        {/* Multi-chain support notice */}
+        <div className="text-xs text-gray-500 text-center">
+          Supports NEAR, Ethereum, Solana, TON, Stellar, and 30+ chains
+        </div>
       </div>
-    </div>
+    </>
   );
 });
 

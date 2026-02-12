@@ -1,31 +1,53 @@
 import { NovaSdk } from 'nova-sdk-js';
+import { prisma } from '@/lib/prisma';
+import { decryptApiKey } from '@/lib/encryption';
 
-let novaClient: NovaSdk | null = null;
-
-export function createNovaClient(accountId: string): NovaSdk | null {
-  if (!process.env.NOVA_API_KEY) {
-    console.warn('NOVA_API_KEY is not set - vault features will be unavailable');
-    return null;
-  }
-
+/**
+ * Create NOVA client with user's API key
+ * @param accountId - NEAR account ID
+ * @param apiKey - User's NOVA API key (decrypted)
+ */
+export function createNovaClient(accountId: string, apiKey: string): NovaSdk {
   return new NovaSdk(accountId, {
-    apiKey: process.env.NOVA_API_KEY,
+    apiKey,
   });
 }
 
-export function getNovaClient(accountId: string): NovaSdk | null {
-  if (!novaClient) {
-    novaClient = createNovaClient(accountId);
+/**
+ * Get NOVA client for a user
+ * Fetches and decrypts user's API key from database
+ * @param accountId - NEAR account ID
+ */
+export async function getNovaClient(accountId: string): Promise<NovaSdk | null> {
+  try {
+    // Find user by accountId
+    const user = await prisma.user.findUnique({
+      where: { accountId },
+      select: { novaApiKey: true },
+    });
+
+    if (!user || !user.novaApiKey) {
+      console.warn(`NOVA API key not found for ${accountId}`);
+      return null;
+    }
+
+    // Decrypt API key
+    const apiKey = await decryptApiKey(user.novaApiKey);
+
+    // Create client
+    return createNovaClient(accountId, apiKey);
+  } catch (error) {
+    console.error('Error getting NOVA client:', error);
+    return null;
   }
-  return novaClient;
 }
 
 export async function createVault(accountId: string): Promise<string> {
-  const nova = getNovaClient(accountId);
+  const nova = await getNovaClient(accountId);
   const vaultId = `vault.${accountId}`;
 
   if (!nova) {
-    throw new Error('NOVA vault service is not available. Please configure NOVA_API_KEY.');
+    throw new Error('NOVA vault service is not available. Please save your NOVA API key first.');
   }
 
   try {
@@ -43,10 +65,10 @@ export async function uploadToVault(
   data: any,
   filename: string
 ): Promise<string> {
-  const nova = getNovaClient(accountId);
+  const nova = await getNovaClient(accountId);
 
   if (!nova) {
-    throw new Error('NOVA vault service is not available. Please configure NOVA_API_KEY.');
+    throw new Error('NOVA vault service is not available. Please save your NOVA API key first.');
   }
 
   try {
@@ -67,10 +89,10 @@ export async function retrieveFromVault(
   vaultId: string,
   cid: string
 ): Promise<any> {
-  const nova = getNovaClient(accountId);
+  const nova = await getNovaClient(accountId);
 
   if (!nova) {
-    throw new Error('NOVA vault service is not available. Please configure NOVA_API_KEY.');
+    throw new Error('NOVA vault service is not available. Please save your NOVA API key first.');
   }
 
   try {
@@ -86,7 +108,7 @@ export async function listVaultFiles(
   accountId: string,
   vaultId: string
 ): Promise<Array<{ cid: string; filename: string; size: number; uploadedAt: string }>> {
-  const nova = getNovaClient(accountId);
+  const nova = await getNovaClient(accountId);
 
   if (!nova) {
     console.warn('NOVA vault service is not available');
@@ -114,10 +136,10 @@ export async function getVaultInfo(
   accountId: string,
   vaultId: string
 ): Promise<any> {
-  const nova = getNovaClient(accountId);
+  const nova = await getNovaClient(accountId);
 
   if (!nova) {
-    throw new Error('NOVA vault service is not available. Please configure NOVA_API_KEY.');
+    throw new Error('NOVA vault service is not available. Please save your NOVA API key first.');
   }
 
   try {
@@ -138,10 +160,10 @@ export async function getVaultInfo(
 }
 
 export async function deleteVault(accountId: string, vaultId: string): Promise<void> {
-  const nova = getNovaClient(accountId);
+  const nova = await getNovaClient(accountId);
 
   if (!nova) {
-    throw new Error('NOVA vault service is not available. Please configure NOVA_API_KEY.');
+    throw new Error('NOVA vault service is not available. Please save your NOVA API key first.');
   }
 
   try {

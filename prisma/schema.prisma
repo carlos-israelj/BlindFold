@@ -10,11 +10,12 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  accountId String   @unique
-  publicKey String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  accountId   String   @unique
+  publicKey   String
+  novaApiKey  String?  // Encrypted NOVA API key for per-user vault access
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   sessions Session[]
   vaults   Vault[]
