@@ -94,7 +94,7 @@ async function verifyNEP413Signature(data: NEP413Signature): Promise<boolean> {
 
     // TEMPORARY: For development, accept any valid-looking signature
     // TODO: Fix proper NEP-413 verification
-    const hasValidStructure = publicKey && signature && accountId && message.nonce;
+    const hasValidStructure = publicKey && signature && data.accountId && message.nonce;
 
     if (hasValidStructure && !isValid1 && !isValid2 && !isValid3) {
       console.warn('⚠️ SKIPPING SIGNATURE VERIFICATION - Development mode');
