@@ -194,13 +194,20 @@ const HotWalletConnect = observer(() => {
     setIsConnecting(true);
     console.log('Starting wallet connection...');
     try {
-      await kit.connect();
-      console.log('kit.connect() resolved. Connected:', kit.isConnected);
+      const result = await kit.connect();
+      console.log('kit.connect() resolved with result:', result);
+      console.log('kit object after connect:', {
+        isConnected: kit.isConnected,
+        near: kit.near,
+        hasNear: !!kit.near,
+        nearKeys: kit.near ? Object.keys(kit.near) : 'no near object'
+      });
 
       // HOT Kit updates isConnected asynchronously after connect() resolves
       // Wait a bit and check again, or let the useEffect handle it
       setTimeout(() => {
         console.log('After timeout - Connected:', kit.isConnected, 'accountId:', kit.near?.accountId);
+        console.log('Full kit.near object:', kit.near);
         if (!kit.isConnected && !kit.near?.accountId) {
           console.log('No wallet connected after timeout, resetting state');
           setIsConnecting(false);
