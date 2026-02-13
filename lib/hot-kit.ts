@@ -81,7 +81,6 @@ export async function openSwapUI() {
 /**
  * Helper: Execute programmatic swap using NEAR Intents
  * For AI advisor-triggered rebalancing
- * TODO: Implement after verifying HOT Kit API structure
  */
 export async function executeSwap(params: {
   fromChain: string;
@@ -89,15 +88,61 @@ export async function executeSwap(params: {
   toChain: string;
   toToken: string;
   amount: string;
+  walletAddress?: string;
 }) {
-  // Temporarily disabled - HOT Kit API needs verification
-  console.warn("executeSwap: Not yet implemented");
-  return { success: false, message: "Not yet implemented" };
+  try {
+    const kit = await getKit();
+
+    // Ensure wallet is connected
+    const senderWallet = kit.priorityWallet;
+    if (!senderWallet) {
+      throw new Error('No wallet connected. Please connect your wallet first.');
+    }
+
+    // Create Token objects
+    const fromToken = kit.omni(`${params.fromChain}:${params.fromToken}`);
+    const toToken = kit.omni(`${params.toChain}:${params.toToken}`);
+
+    // Convert amount to bigint
+    const amountBigInt = BigInt(Math.floor(parseFloat(params.amount) * 1e6));
+
+    // Get review first
+    const review = await kit.exchange.reviewSwap({
+      from: fromToken,
+      to: toToken,
+      amount: amountBigInt,
+      type: 'exactIn',
+      slippage: 0.01, // 1% slippage
+      sender: senderWallet,
+    });
+
+    // Execute the swap
+    const pending = await kit.exchange.makeSwap(review);
+
+    // Wait for transaction result
+    const result = await pending.resolve();
+
+    return {
+      success: true,
+      data: {
+        txHash: result.hash || 'unknown',
+        fromAmount: params.amount,
+        toAmount: (Number(review.amountOut) / 1e6).toString(),
+        explorerUrl: result.explorerUrl || '#',
+      }
+    };
+  } catch (error: any) {
+    console.error('executeSwap error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to execute swap'
+    };
+  }
 }
 
 /**
  * Helper: Get swap quote before execution
- * TODO: Implement after verifying HOT Kit API structure
+ * Uses HOT Kit Exchange API with reviewSwap
  */
 export async function getSwapQuote(params: {
   fromChain: string;
@@ -106,9 +151,47 @@ export async function getSwapQuote(params: {
   toToken: string;
   amount: string;
 }) {
-  // Temporarily disabled - HOT Kit API needs verification
-  console.warn("getSwapQuote: Not yet implemented");
-  return { quote: "0", message: "Not yet implemented" };
+  try {
+    const kit = await getKit();
+
+    // Create Token objects from chain/token params
+    const fromToken = kit.omni(`${params.fromChain}:${params.fromToken}`);
+    const toToken = kit.omni(`${params.toChain}:${params.toToken}`);
+
+    // Convert amount to bigint (assuming token has standard decimals)
+    const amountBigInt = BigInt(Math.floor(parseFloat(params.amount) * 1e6)); // 6 decimals default
+
+    // Get quote using Exchange.reviewSwap
+    const review = await kit.exchange.reviewSwap({
+      from: fromToken,
+      to: toToken,
+      amount: amountBigInt,
+      type: 'exactIn',
+      slippage: 0.01, // 1% slippage
+    });
+
+    // Format response
+    const toAmount = Number(review.amountOut) / 1e6; // Convert back from bigint
+    const rate = toAmount / parseFloat(params.amount);
+
+    return {
+      success: true,
+      data: {
+        toAmount: toAmount.toString(),
+        minToAmount: (Number(review.minAmountOut) / 1e6).toString(),
+        rate: rate.toString(),
+        slippage: review.slippage,
+        fee: review.fee,
+        estimatedTime: '~30 seconds',
+      }
+    };
+  } catch (error: any) {
+    console.error('getSwapQuote error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to get swap quote'
+    };
+  }
 }
 
 /**

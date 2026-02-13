@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-// TODO: HOT Kit can only be used in client components, not API routes
-// Move swap logic to client-side when implementing multi-chain swaps
-// import { getSwapQuote, executeSwap } from '@/lib/hot-kit';
 
 /**
- * GET /api/swap - Get swap quote (TEMPORARILY DISABLED - HOT Kit is client-only)
+ * GET /api/swap - Get swap quote
+ *
+ * NOTE: HOT Kit is browser-only, so this endpoint redirects to client-side implementation.
+ * The actual swap logic is in SwapModal.tsx using lib/hot-kit.ts
  */
 export async function GET(request: NextRequest) {
   return NextResponse.json(
     {
       success: false,
-      error: 'Swap endpoint temporarily disabled. HOT Kit integration in progress. Use client-side swap UI instead.'
+      error: 'HOT Kit swaps must be executed client-side. Please use the SwapModal component.',
+      info: 'This is not an error - HOT Kit requires browser environment for wallet signatures and NEAR Intents.'
     },
     { status: 501 }
   );
@@ -62,13 +63,17 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/swap - Execute swap (TEMPORARILY DISABLED - HOT Kit is client-only)
+ * POST /api/swap - Execute swap
+ *
+ * NOTE: HOT Kit is browser-only, so this endpoint redirects to client-side implementation.
+ * The actual swap logic is in SwapModal.tsx using lib/hot-kit.ts
  */
 export async function POST(request: NextRequest) {
   return NextResponse.json(
     {
       success: false,
-      error: 'Swap endpoint temporarily disabled. HOT Kit integration in progress. Use client-side swap UI instead.'
+      error: 'HOT Kit swaps must be executed client-side. Please use the SwapModal component.',
+      info: 'This is not an error - HOT Kit requires browser environment for wallet signatures and NEAR Intents.'
     },
     { status: 501 }
   );

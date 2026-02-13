@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { getSwapQuote, executeSwap } from '@/lib/hot-kit';
 
 interface SwapModalProps {
   isOpen: boolean;
@@ -61,16 +62,14 @@ export function SwapModal({
     setError(null);
 
     try {
-      const params = new URLSearchParams({
+      // Call HOT Kit directly (client-side only)
+      const result = await getSwapQuote({
         fromChain,
         toChain,
         fromToken,
         toToken,
         amount,
       });
-
-      const response = await fetch(`/api/swap?${params}`);
-      const result = await response.json();
 
       if (result.success) {
         setQuote(result.data);
@@ -84,28 +83,22 @@ export function SwapModal({
     }
   };
 
-  const executeSwap = async () => {
+  const handleExecuteSwap = async () => {
     setExecuting(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/swap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fromChain,
-          toChain,
-          fromToken,
-          toToken,
-          amount,
-          walletAddress: 'user.near', // Would come from wallet context
-        }),
+      // Call HOT Kit directly (client-side only)
+      const result = await executeSwap({
+        fromChain,
+        toChain,
+        fromToken,
+        toToken,
+        amount,
       });
 
-      const result = await response.json();
-
-      if (result.success) {
-        alert(`Swap successful! Transaction: ${result.data.txHash}`);
+      if (result.success && result.data) {
+        alert(`Swap successful! Transaction: ${result.data.txHash}\n\nFrom: ${result.data.fromAmount} ${fromToken}\nTo: ${result.data.toAmount} ${toToken}`);
         onClose();
       } else {
         setError(result.error || 'Swap failed');
@@ -273,7 +266,7 @@ export function SwapModal({
 
         {/* Action Button */}
         <button
-          onClick={executeSwap}
+          onClick={handleExecuteSwap}
           disabled={!quote || loading || executing || !!error}
           className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
