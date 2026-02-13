@@ -8,7 +8,7 @@
 import { Near } from 'near-kit';
 
 const CONTRACT_ID = process.env.NEXT_PUBLIC_CONTRACT_ID || 'ecuador5.near';
-const NEAR_NETWORK = process.env.NEXT_PUBLIC_NEAR_NETWORK || 'mainnet';
+const NEAR_NETWORK = (process.env.NEXT_PUBLIC_NEAR_NETWORK || 'mainnet') as 'mainnet' | 'testnet';
 
 export interface AdvisorRequest {
   id: number;
