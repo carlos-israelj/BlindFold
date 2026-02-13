@@ -56,6 +56,7 @@ async function main() {
   console.log(`Group ID: ${GROUP_ID}`);
   console.log(`Schedule: ${SCHEDULE}`);
   console.log(`Monitoring: ${MONITORING_ENABLED ? 'ENABLED' : 'DISABLED'}`);
+  console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'NOT SET'}`);
   console.log('='.repeat(60));
 
   if (!MONITORING_ENABLED) {
