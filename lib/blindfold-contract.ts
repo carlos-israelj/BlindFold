@@ -104,7 +104,7 @@ export async function getRequest(requestId: number): Promise<AdvisorRequest | nu
       { request_id: requestId }
     );
 
-    return request;
+    return request || null;
   } catch (error) {
     console.error('Error getting request:', error);
     return null;
@@ -126,7 +126,7 @@ export async function getVerification(verificationId: number): Promise<Verificat
       { verification_id: verificationId }
     );
 
-    return verification;
+    return verification || null;
   } catch (error) {
     console.error('Error getting verification:', error);
     return null;
@@ -192,7 +192,7 @@ export async function calculateRiskScore(portfolioJson: string): Promise<RiskSco
       { portfolio_json: portfolioJson }
     );
 
-    return riskScore;
+    return riskScore || null;
   } catch (error) {
     console.error('Error calculating risk score:', error);
     return null;
@@ -218,6 +218,8 @@ export async function getStats(): Promise<{
       'get_stats',
       {}
     );
+
+    if (!stats) return null;
 
     return {
       totalRequests: stats[0],
