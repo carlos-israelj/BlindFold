@@ -3,7 +3,6 @@
  */
 
 import { NovaSdk } from 'nova-sdk-js';
-import * as nearAPI from 'near-api-js';
 
 let novaClient: NovaSdk | null = null;
 
@@ -13,32 +12,21 @@ export async function getNovaClient(accountId: string): Promise<NovaSdk> {
   }
 
   const network = process.env.NEAR_NETWORK || 'testnet';
-  const privateKey = process.env.NEAR_PRIVATE_KEY!;
+  const privateKey = process.env.NEAR_PRIVATE_KEY;
 
   if (!privateKey) {
     throw new Error('NEAR_PRIVATE_KEY environment variable is required');
   }
 
-  // Initialize NEAR connection
-  const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
-  const keyPair = nearAPI.utils.KeyPair.fromString(privateKey);
-  await keyStore.setKey(network, accountId, keyPair);
-
-  const connectionConfig: nearAPI.ConnectConfig = {
-    networkId: network,
-    keyStore,
-    nodeUrl: `https://rpc.${network}.near.org`,
-    walletUrl: `https://wallet.${network}.near.org`,
-    helperUrl: `https://helper.${network}.near.org`,
-  };
-
-  const nearConnection = await nearAPI.connect(connectionConfig);
-  const account = await nearConnection.account(accountId);
+  // Determine RPC based on network
+  const rpcUrl = network === 'mainnet'
+    ? 'https://rpc.mainnet.near.org'
+    : 'https://rpc.testnet.near.org';
 
   // Initialize NOVA SDK
-  novaClient = new NovaSdk({
-    nearAccount: account,
-    ipfsGateway: process.env.IPFS_GATEWAY || 'https://gateway.pinata.cloud',
+  // Note: contractId is auto-detected by the SDK based on the network
+  novaClient = new NovaSdk(accountId, {
+    rpcUrl,
   });
 
   return novaClient;
@@ -60,9 +48,9 @@ export async function getLatestPortfolioCid(
       return null;
     }
 
-    // Sort by timestamp descending and get latest
-    const sorted = transactions.sort((a, b) => b.block_timestamp - a.block_timestamp);
-    return sorted[0].ipfs_hash;
+    // Return the most recent transaction's IPFS hash
+    // Transactions are already sorted by most recent first
+    return transactions[0].ipfs_hash;
   } catch (error) {
     console.error('Failed to get latest CID:', error);
     return null;

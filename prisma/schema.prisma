@@ -15,6 +15,7 @@ model User {
   publicKey      String
   novaApiKey     String?  // Encrypted NOVA API key for per-user vault access
   novaAccountId  String?  // NOVA account ID (e.g., username.nova-sdk.near)
+  novaVaultId    String?  // Group ID where portfolio is stored
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

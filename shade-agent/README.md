@@ -79,18 +79,82 @@ npm start
 
 ### Option 1: Phala Cloud TEE (Recommended)
 
-1. **Sign up for Phala Cloud**
-   - Visit https://phala.network
-   - Create account and get API credentials
+**Get $400 in free credits when you sign up!** ✨
 
-2. **Deploy as TEE Worker**
-   ```bash
-   npm run deploy
-   ```
+#### Step 1: Sign up for Phala Cloud
 
-3. **Configure Secrets**
-   - Add `NEAR_PRIVATE_KEY` as secure environment variable in Phala dashboard
-   - Set other config variables
+Visit https://phala.network and create your account. You'll get $400 in credits to deploy and test your TEE workloads.
+
+#### Step 2: Install Phala Cloud CLI
+
+```bash
+npm install -g @phala/cli
+# or
+npx @phala/cli --version
+```
+
+#### Step 3: Login to Phala Cloud
+
+```bash
+npx @phala/cli auth login
+```
+
+This will open your browser to authenticate.
+
+#### Step 4: Prepare Environment Variables
+
+Create a `.env` file in the `shade-agent/` directory:
+
+```env
+NEAR_ACCOUNT_ID=your-account.testnet
+NEAR_PRIVATE_KEY=ed25519:your-private-key
+NOVA_GROUP_ID=portfolio-vault
+SCHEDULE_CRON=0 9 * * *
+MONITORING_ENABLED=true
+NEAR_NETWORK=testnet
+```
+
+#### Step 5: Deploy to Phala Cloud
+
+```bash
+cd shade-agent
+
+# Build and push Docker image
+npx @phala/cli docker build --image blindfold-shade-agent --tag v1.0.0
+
+# Deploy to TEE
+npx @phala/cli cvms create \
+  --name blindfold-shade-agent \
+  --compose ./docker-compose.yml \
+  --env-file ./.env
+```
+
+#### Step 6: Verify Deployment
+
+```bash
+# Check deployment status
+npx @phala/cli cvms list
+
+# View logs
+npx @phala/cli cvms logs blindfold-shade-agent
+
+# Get TEE attestation
+npx @phala/cli cvms show blindfold-shade-agent
+```
+
+#### Step 7: Verify TEE Attestation
+
+1. Go to your Phala Cloud dashboard
+2. Click on your `blindfold-shade-agent` deployment
+3. Navigate to "Attestation" tab
+4. Click "Check Attestation" to verify your code is running in a genuine TEE
+5. Share the TEE quote as proof of secure execution
+
+#### Pricing
+
+- **Free tier**: $400 credits (enough for extensive testing)
+- **Paid tier**: $0.06/vCPU/hour or $5/month for a CVM
+- Your Shade Agent uses minimal resources (~0.5 vCPU, 256MB RAM)
 
 ### Option 2: Docker Container
 

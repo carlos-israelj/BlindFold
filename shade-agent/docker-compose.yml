@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  shade-agent:
+    image: ghcr.io/carlos-israelj/blindfold-shade-agent:v1.0.1
+    container_name: shade-agent
+    restart: unless-stopped
+
+    # Mount Phala TEE socket for attestation
+    volumes:
+      - /var/run/tappd.sock:/var/run/tappd.sock
+
+    environment:
+      # NEAR Configuration
+      - NEAR_ACCOUNT_ID=${NEAR_ACCOUNT_ID}
+      - NEAR_PRIVATE_KEY=${NEAR_PRIVATE_KEY}
+      - NEAR_NETWORK=${NEAR_NETWORK:-testnet}
+
+      # NOVA Configuration
+      - NOVA_GROUP_ID=${NOVA_GROUP_ID}
+
+      # Monitoring Configuration
+      - SCHEDULE_CRON=${SCHEDULE_CRON:-0 9 * * *}
+      - MONITORING_ENABLED=${MONITORING_ENABLED:-true}
+
+      # Alert Configuration (optional)
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
+      - ALERT_EMAIL=${ALERT_EMAIL:-}
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "node", "-e", "console.log('healthy')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
