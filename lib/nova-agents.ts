@@ -5,7 +5,7 @@
 
 import { NovaSdk } from 'nova-sdk-js';
 import { getNovaClient } from './nova';
-import { calculateHHI, getRiskLevel } from './portfolio-analytics';
+import { calculateHHI } from './portfolio-analytics';
 
 export interface AgentConfig {
   id: string;
@@ -130,8 +130,17 @@ export async function executeRiskAnalysis(
     const portfolio = JSON.parse(decrypted.plaintext.toString());
 
     // Calculate risk metrics
-    const hhi = calculateHHI(portfolio);
-    const riskLevel = getRiskLevel(hhi);
+    const hhi = calculateHHI(portfolio.assets || portfolio);
+
+    // Determine risk level from HHI
+    let concentration: 'Low' | 'Medium' | 'High';
+    if (hhi < 1500) {
+      concentration = 'Low';
+    } else if (hhi < 2500) {
+      concentration = 'Medium';
+    } else {
+      concentration = 'High';
+    }
 
     // Determine notification severity
     let severity: 'info' | 'warning' | 'critical' = 'info';
@@ -159,7 +168,7 @@ export async function executeRiskAnalysis(
       severity,
       data: {
         hhi,
-        riskLevel,
+        concentration,
         assetsCount: portfolio.assets?.length || 0,
         totalValue: portfolio.totalValue || 0,
       },
