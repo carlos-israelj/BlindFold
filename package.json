@@ -34,6 +34,7 @@
     "mobx": "^6.15.0",
     "mobx-react-lite": "^4.1.1",
     "near-api-js": "^5.0.0",
+    "near-kit": "^1.0.0",
     "next": "^14.2.0",
     "nova-sdk-js": "^1.0.3",
     "openai": "^4.75.0",
