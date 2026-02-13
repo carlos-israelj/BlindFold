@@ -7,6 +7,7 @@ import {
   listVaultFiles,
   getVaultInfo,
 } from '@/lib/nova';
+import { encryptWithShade, getShadeAttestation } from '@/lib/nova-encryption';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,10 +36,29 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-        const uploadCid = await uploadToVault(accountId, vaultId, data, filename);
+
+        // Encrypt with Shade Agent before upload
+        console.log('🔐 Encrypting with Shade Agent TEE...');
+        const { encrypted, metadata } = await encryptWithShade(
+          JSON.stringify(data),
+          accountId
+        );
+
+        // Upload encrypted data to NOVA vault
+        const uploadCid = await uploadToVault(
+          accountId,
+          vaultId,
+          encrypted,
+          filename
+        );
+
         return NextResponse.json({
           success: true,
-          data: { cid: uploadCid },
+          data: {
+            cid: uploadCid,
+            encryption: metadata,
+            message: 'Data encrypted with Shade Agent and uploaded to NOVA vault',
+          },
         });
       }
 
@@ -101,6 +121,19 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           data: { message: 'Vault deleted successfully' },
+        });
+      }
+
+      case 'attestation': {
+        // Get Shade Agent attestation for verification
+        const attestation = await getShadeAttestation(accountId);
+        return NextResponse.json({
+          success: true,
+          data: {
+            attestation,
+            message: 'Shade Agent attestation retrieved',
+            verified: attestation.verified,
+          },
         });
       }
 
