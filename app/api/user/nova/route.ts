@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
       data: {
         hasNovaApiKey: hasApiKey,
         accountId: session.user.accountId,
+        novaAccountId: session.user.novaAccountId,
       },
     });
   } catch (error) {
@@ -51,11 +52,11 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/user/nova
- * Save user's NOVA API key (encrypted)
+ * Save user's NOVA API key and account ID (encrypted)
  */
 export async function POST(req: NextRequest) {
   try {
-    const { novaApiKey } = await req.json();
+    const { novaApiKey, novaAccountId } = await req.json();
 
     if (!novaApiKey || typeof novaApiKey !== 'string') {
       return NextResponse.json(
@@ -64,10 +65,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!novaAccountId || typeof novaAccountId !== 'string') {
+      return NextResponse.json(
+        { error: 'NOVA Account ID is required' },
+        { status: 400 }
+      );
+    }
+
     // Validate API key format (starts with nova_sk_)
     if (!novaApiKey.startsWith('nova_sk_')) {
       return NextResponse.json(
         { error: 'Invalid NOVA API key format. Must start with "nova_sk_"' },
+        { status: 400 }
+      );
+    }
+
+    // Validate NOVA Account ID format (ends with .nova-sdk.near)
+    if (!novaAccountId.endsWith('.nova-sdk.near')) {
+      return NextResponse.json(
+        { error: 'Invalid NOVA Account ID format. Must end with ".nova-sdk.near"' },
         { status: 400 }
       );
     }
@@ -98,17 +114,23 @@ export async function POST(req: NextRequest) {
     // Encrypt API key before storing
     const encryptedApiKey = await encryptApiKey(novaApiKey);
 
-    // Update user with encrypted API key
+    // Update user with encrypted API key and account ID
     await prisma.user.update({
       where: { id: session.userId },
-      data: { novaApiKey: encryptedApiKey },
+      data: {
+        novaApiKey: encryptedApiKey,
+        novaAccountId: novaAccountId,
+      },
     });
 
-    console.log(`✅ NOVA API key saved for user: ${session.user.accountId}`);
+    console.log(`✅ NOVA credentials saved for user: ${session.user.accountId}`);
 
     return NextResponse.json({
       success: true,
-      message: 'NOVA API key saved successfully',
+      message: 'NOVA credentials saved successfully',
+      data: {
+        novaAccountId: novaAccountId,
+      },
     });
   } catch (error) {
     console.error('Error saving NOVA API key:', error);

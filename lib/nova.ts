@@ -16,26 +16,26 @@ export function createNovaClient(accountId: string, apiKey: string): NovaSdk {
 /**
  * Get NOVA client for a user
  * Fetches and decrypts user's API key from database
- * @param accountId - NEAR account ID
+ * @param accountId - NEAR account ID (wallet address)
  */
 export async function getNovaClient(accountId: string): Promise<NovaSdk | null> {
   try {
     // Find user by accountId
     const user = await prisma.user.findUnique({
       where: { accountId },
-      select: { novaApiKey: true },
+      select: { novaApiKey: true, novaAccountId: true },
     });
 
-    if (!user || !user.novaApiKey) {
-      console.warn(`NOVA API key not found for ${accountId}`);
+    if (!user || !user.novaApiKey || !user.novaAccountId) {
+      console.warn(`NOVA credentials not found for ${accountId}`);
       return null;
     }
 
     // Decrypt API key
     const apiKey = await decryptApiKey(user.novaApiKey);
 
-    // Create client
-    return createNovaClient(accountId, apiKey);
+    // Create client with NOVA account ID (not wallet address)
+    return createNovaClient(user.novaAccountId, apiKey);
   } catch (error) {
     console.error('Error getting NOVA client:', error);
     return null;

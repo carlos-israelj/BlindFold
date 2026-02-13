@@ -182,8 +182,10 @@ const HotWalletConnect = observer(() => {
           // Check if it's a NOVA API key missing error
           if (vaultData.error?.includes('save your NOVA API key first') ||
               vaultData.error?.includes('Account not found') ||
+              vaultData.error?.includes('NOVA vault service is not available') ||
               vaultData.error?.includes('401')) {
             console.info('ℹ️ NOVA Vault unavailable: API key not configured');
+            console.log('🔔 Opening NOVA setup modal...');
             // Show setup modal
             setShowNovaSetup(true);
           } else {
@@ -193,10 +195,13 @@ const HotWalletConnect = observer(() => {
         }
       } catch (vaultError: any) {
         // Check if it's a NOVA API key missing error
+        console.log('🔍 Vault error caught:', vaultError.message);
         if (vaultError.message?.includes('save your NOVA API key first') ||
             vaultError.message?.includes('Account not found') ||
+            vaultError.message?.includes('NOVA vault service is not available') ||
             vaultError.message?.includes('401')) {
           console.info('ℹ️ NOVA Vault unavailable: API key not configured');
+          console.log('🔔 Opening NOVA setup modal...');
           // Show setup modal
           setShowNovaSetup(true);
         } else {

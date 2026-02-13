@@ -11,11 +11,14 @@ interface NovaSetupModalProps {
 
 export default function NovaSetupModal({ isOpen, onClose, onSuccess, accountId }: NovaSetupModalProps) {
   const [apiKey, setApiKey] = useState('');
+  const [novaAccountId, setNovaAccountId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<'instructions' | 'input'>('instructions');
 
   if (!isOpen) return null;
+
+  console.log('📋 NovaSetupModal rendered - isOpen:', isOpen, 'accountId:', accountId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,21 +29,25 @@ export default function NovaSetupModal({ isOpen, onClose, onSuccess, accountId }
       const response = await fetch('/api/user/nova', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ novaApiKey: apiKey }),
+        body: JSON.stringify({
+          novaApiKey: apiKey,
+          novaAccountId: novaAccountId
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to save API key');
+        throw new Error(data.error || 'Failed to save NOVA credentials');
       }
 
       // Success!
       onSuccess();
       setApiKey('');
+      setNovaAccountId('');
       setCurrentStep('instructions');
     } catch (err: any) {
-      setError(err.message || 'Failed to save API key');
+      setError(err.message || 'Failed to save NOVA credentials');
     } finally {
       setIsSubmitting(false);
     }
@@ -109,9 +116,12 @@ export default function NovaSetupModal({ isOpen, onClose, onSuccess, accountId }
                       2
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-900">Register Your Account</h4>
+                      <h4 className="font-semibold text-gray-900">Create NOVA Account</h4>
                       <p className="text-gray-600 text-sm">
-                        Login or register with your NEAR account: <code className="bg-gray-100 px-2 py-1 rounded text-xs">{accountId}</code>
+                        Sign up with email/social login. NOVA will create a NEAR account for you (format: <code className="bg-gray-100 px-2 py-1 rounded text-xs">yourname.nova-sdk.near</code>)
+                      </p>
+                      <p className="text-blue-700 text-xs mt-1 bg-blue-50 p-2 rounded">
+                        ℹ️ Your wallet <code className="bg-blue-100 px-1 rounded text-xs break-all">{accountId}</code> will use this NOVA account for encrypted storage.
                       </p>
                     </div>
                   </li>
@@ -136,13 +146,18 @@ export default function NovaSetupModal({ isOpen, onClose, onSuccess, accountId }
                       4
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-900">Fund Your Account</h4>
+                      <h4 className="font-semibold text-gray-900">Fund Your NOVA Account</h4>
                       <p className="text-gray-600 text-sm">
-                        Add NEAR tokens to your NOVA account for vault operations
+                        Add NEAR tokens to your NOVA account (yourname.nova-sdk.near) for vault operations
                       </p>
-                      <p className="text-gray-500 text-xs mt-1">
-                        Typical costs: Register vault ~0.05 NEAR, Upload ~0.01 NEAR
-                      </p>
+                      <div className="mt-2 bg-amber-50 border border-amber-200 rounded p-2">
+                        <p className="text-amber-900 text-xs font-semibold">⚠️ Required Minimum:</p>
+                        <ul className="text-amber-800 text-xs mt-1 space-y-0.5 ml-4">
+                          <li>• Create vault: ~0.67 NEAR</li>
+                          <li>• Upload file: ~0.01 NEAR each</li>
+                          <li>• <strong>Recommended: 1 NEAR minimum</strong></li>
+                        </ul>
+                      </div>
                     </div>
                   </li>
                 </ol>
@@ -175,6 +190,25 @@ export default function NovaSetupModal({ isOpen, onClose, onSuccess, accountId }
 
           {currentStep === 'input' && (
             <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label htmlFor="novaAccountId" className="block text-sm font-semibold text-gray-900 mb-2">
+                  NOVA Account ID
+                </label>
+                <input
+                  type="text"
+                  id="novaAccountId"
+                  value={novaAccountId}
+                  onChange={(e) => setNovaAccountId(e.target.value)}
+                  placeholder="yourname.nova-sdk.near"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent font-mono text-sm"
+                  required
+                  disabled={isSubmitting}
+                />
+                <p className="text-gray-500 text-xs mt-2">
+                  The NEAR account created by NOVA (e.g., yourname.nova-sdk.near)
+                </p>
+              </div>
+
               <div>
                 <label htmlFor="apiKey" className="block text-sm font-semibold text-gray-900 mb-2">
                   NOVA API Key
@@ -212,9 +246,9 @@ export default function NovaSetupModal({ isOpen, onClose, onSuccess, accountId }
                 <button
                   type="submit"
                   className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold disabled:opacity-50"
-                  disabled={isSubmitting || !apiKey}
+                  disabled={isSubmitting || !apiKey || !novaAccountId}
                 >
-                  {isSubmitting ? 'Saving...' : 'Save API Key'}
+                  {isSubmitting ? 'Saving...' : 'Save NOVA Credentials'}
                 </button>
               </div>
             </form>
