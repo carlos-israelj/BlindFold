@@ -1,5 +1,8 @@
 /**
  * NOVA SDK Client for Shade Agent
+ *
+ * Note: This implementation is READ-ONLY for monitoring purposes.
+ * Portfolio data should be uploaded through the web interface.
  */
 
 import { NovaSdk } from 'nova-sdk-js';
@@ -24,7 +27,7 @@ export async function getNovaClient(accountId: string): Promise<NovaSdk> {
     : 'https://rpc.testnet.near.org';
 
   // Initialize NOVA SDK
-  // Note: contractId is auto-detected by the SDK based on the network
+  // Note: contractId is auto-detected based on network
   novaClient = new NovaSdk(accountId, {
     rpcUrl,
   });
@@ -33,28 +36,28 @@ export async function getNovaClient(accountId: string): Promise<NovaSdk> {
 }
 
 /**
- * Get latest portfolio CID from group transactions
+ * Get latest portfolio CID from environment variable
+ *
+ * Since Shade Agent is READ-ONLY, the CID should be provided
+ * via environment variable after portfolio upload from web interface.
  */
 export async function getLatestPortfolioCid(
   accountId: string,
   groupId: string
 ): Promise<string | null> {
-  const nova = await getNovaClient(accountId);
+  // Check if CID is provided via environment variable
+  const envCid = process.env.PORTFOLIO_CID;
 
-  try {
-    const transactions = await nova.getTransactionsForGroup(groupId);
-
-    if (!transactions || transactions.length === 0) {
-      return null;
-    }
-
-    // Return the most recent transaction's IPFS hash
-    // Transactions are already sorted by most recent first
-    return transactions[0].ipfs_hash;
-  } catch (error) {
-    console.error('Failed to get latest CID:', error);
-    return null;
+  if (envCid) {
+    console.log(`Using portfolio CID from environment: ${envCid}`);
+    return envCid;
   }
+
+  console.log('⚠️  No PORTFOLIO_CID set in environment.');
+  console.log('💡 Upload your portfolio through the web interface,');
+  console.log('   then set PORTFOLIO_CID environment variable with the returned CID.');
+
+  return null;
 }
 
 /**
