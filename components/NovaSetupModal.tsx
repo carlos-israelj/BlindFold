@@ -133,10 +133,10 @@ export default function NovaSetupModal({ isOpen, onClose, onSuccess, accountId }
                     <div>
                       <h4 className="font-semibold text-gray-900">Generate API Key</h4>
                       <p className="text-gray-600 text-sm">
-                        Click "Manage Account" → "Generate API Key"
+                        Click &quot;Manage Account&quot; → &quot;Generate API Key&quot;
                       </p>
                       <p className="text-amber-700 text-xs mt-1 bg-amber-50 p-2 rounded">
-                        ⚠️ Copy the API key immediately - it's only shown once!
+                        ⚠️ Copy the API key immediately - it&apos;s only shown once!
                       </p>
                     </div>
                   </li>

@@ -1,134 +1,113 @@
 /**
- * NOVA Shade Agent Encryption
- * Uses Shade TEE for key management instead of client-side keys
+ * NOVA Encryption Architecture Documentation
+ *
+ * NOTE: NOVA SDK handles encryption/decryption internally via upload() and retrieve().
+ * This file documents how the encryption works and provides utilities for
+ * understanding the security model.
+ *
+ * Encryption Flow:
+ * 1. upload() - SDK encrypts data client-side with AES-256-GCM before uploading
+ * 2. retrieve() - SDK decrypts data after downloading from IPFS
+ *
+ * Shade Agent Integration:
+ * - Keys are derived from NEAR account using TEE-based key derivation
+ * - Shade agents can access keys via ephemeral tokens signed by user
+ * - No private keys ever leave the TEE environment
  */
 
-import { NovaSdk } from 'nova-sdk-js';
 import { getNovaClient } from './nova';
+import { uploadPortfolioData, retrievePortfolioData } from './nova-simple';
 
-/**
- * Encrypt data using Shade Agent key management
- * Keys are derived and stored in Phala TEE, never exposed
- */
-export async function encryptWithShade(
-  data: string,
-  accountId: string
-): Promise<{
-  encrypted: string;
-  metadata: {
-    algorithm: string;
-    keyDerivation: string;
-    shadeAttestation: string;
-  };
-}> {
-  const nova = await getNovaClient(accountId);
-
-  if (!nova) {
-    throw new Error('NOVA client not configured');
-  }
-
-  try {
-    // Use NOVA's Shade-based encryption
-    // Keys are managed in Phala TEE, derived from user's NEAR account
-    const result = await nova.encrypt({
-      data: Buffer.from(data, 'utf-8'),
-      keyDerivation: {
-        type: 'shade-agent',
-        accountId: accountId,
-      },
-      algorithm: 'AES-256-GCM',
-    });
-
-    return {
-      encrypted: result.ciphertext.toString('base64'),
-      metadata: {
-        algorithm: 'AES-256-GCM',
-        keyDerivation: 'shade-agent-phala-tee',
-        shadeAttestation: result.attestation || 'pending',
-      },
-    };
-  } catch (error: any) {
-    console.error('Shade encryption error:', error);
-
-    // Fallback to client-side encryption if Shade not available
-    console.warn('Falling back to client-side encryption');
-    return fallbackEncryption(data, accountId);
-  }
+export interface EncryptionMetadata {
+  algorithm: 'AES-256-GCM';
+  keyDerivation: 'shade-tee' | 'client-side';
+  groupId: string;
+  cid: string;
+  transactionId: string;
 }
 
 /**
- * Decrypt data using Shade Agent key management
+ * Upload and encrypt portfolio data
+ * Uses NOVA SDK's built-in encryption (AES-256-GCM)
  */
-export async function decryptWithShade(
-  encrypted: string,
-  accountId: string
-): Promise<string> {
-  const nova = await getNovaClient(accountId);
-
-  if (!nova) {
-    throw new Error('NOVA client not configured');
-  }
-
-  try {
-    const result = await nova.decrypt({
-      ciphertext: Buffer.from(encrypted, 'base64'),
-      keyDerivation: {
-        type: 'shade-agent',
-        accountId: accountId,
-      },
-    });
-
-    return result.plaintext.toString('utf-8');
-  } catch (error: any) {
-    console.error('Shade decryption error:', error);
-    throw new Error('Failed to decrypt with Shade Agent');
-  }
-}
-
-/**
- * Fallback client-side encryption (for compatibility)
- */
-function fallbackEncryption(data: string, accountId: string) {
-  const crypto = require('crypto');
-
-  // Derive key from account ID (deterministic)
-  const key = crypto
-    .createHash('sha256')
-    .update(accountId + process.env.ENCRYPTION_SALT)
-    .digest();
-
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-
-  let encrypted = cipher.update(data, 'utf-8', 'base64');
-  encrypted += cipher.final('base64');
-
-  const tag = cipher.getAuthTag();
-
-  const combined = JSON.stringify({
-    encrypted,
-    iv: iv.toString('base64'),
-    tag: tag.toString('base64'),
-  });
+export async function encryptAndUpload(
+  accountId: string,
+  groupId: string,
+  data: any,
+  filename?: string
+): Promise<EncryptionMetadata> {
+  // NOVA SDK handles encryption internally
+  const result = await uploadPortfolioData(accountId, groupId, data, filename);
 
   return {
-    encrypted: combined,
-    metadata: {
-      algorithm: 'AES-256-GCM',
-      keyDerivation: 'client-side-fallback',
-      shadeAttestation: 'not-available',
-    },
+    algorithm: 'AES-256-GCM',
+    keyDerivation: 'shade-tee',
+    groupId,
+    cid: result.cid,
+    transactionId: result.transactionId,
   };
 }
 
 /**
- * Get Shade Agent attestation for verification
+ * Retrieve and decrypt portfolio data
+ * Uses NOVA SDK's built-in decryption
  */
-export async function getShadeAttestation(accountId: string): Promise<{
-  codehash: string;
-  timestamp: number;
-  signingKey: string;
-  verified: boolean;
+export async function retrieveAndDecrypt(
+  accountId: string,
+  groupId: string,
+  cid: string
+): Promise<any> {
+  // NOVA SDK handles decryption internally
+  return await retrievePortfolioData(accountId, groupId, cid);
+}
+
+/**
+ * Check if user is authorized to access encrypted data
+ */
+export async function checkEncryptionAccess(
+  accountId: string,
+  groupId: string
+): Promise<{
+  hasAccess: boolean;
+  keyDerivation: 'shade-tee' | 'unavailable';
+}> {
+  const nova = await getNovaClient(accountId);
+
+  if (!nova) {
+    return {
+      hasAccess: false,
+      keyDerivation: 'unavailable',
+    };
+  }
+
+  try {
+    const hasAccess = await nova.isAuthorized(groupId, accountId);
+
+    return {
+      hasAccess,
+      keyDerivation: hasAccess ? 'shade-tee' : 'unavailable',
+    };
+  } catch (error) {
+    console.error('Failed to check encryption access:', error);
+    return {
+      hasAccess: false,
+      keyDerivation: 'unavailable',
+    };
+  }
+}
+
+/**
+ * Get encryption metadata for a group
+ */
+export async function getEncryptionInfo(
+  accountId: string,
+  groupId: string
+): Promise<{
+  algorithm: string;
+  keyManagement: string;
+  teeProvider: string;
+  owner: string | null;
+  checksum: string | null;
 }> {
   const nova = await getNovaClient(accountId);
 
@@ -137,21 +116,70 @@ export async function getShadeAttestation(accountId: string): Promise<{
   }
 
   try {
-    const attestation = await nova.getShadeAttestation();
+    const [owner, checksum] = await Promise.all([
+      nova.getGroupOwner(groupId),
+      nova.getGroupChecksum(groupId),
+    ]);
 
     return {
-      codehash: attestation.codeHash,
-      timestamp: attestation.timestamp,
-      signingKey: attestation.publicKey,
-      verified: attestation.verified,
+      algorithm: 'AES-256-GCM',
+      keyManagement: 'Shade TEE Key Derivation',
+      teeProvider: 'Phala Network',
+      owner,
+      checksum,
     };
   } catch (error) {
-    console.error('Failed to get Shade attestation:', error);
-    return {
-      codehash: 'unavailable',
-      timestamp: Date.now(),
-      signingKey: 'unavailable',
-      verified: false,
-    };
+    console.error('Failed to get encryption info:', error);
+    throw error;
   }
 }
+
+/**
+ * ENCRYPTION ARCHITECTURE DOCUMENTATION
+ *
+ * How NOVA Encryption Works:
+ *
+ * 1. CLIENT-SIDE ENCRYPTION (upload):
+ *    - User calls nova.upload(groupId, data, filename)
+ *    - SDK generates encryption key from:
+ *      * User's NEAR account (deterministic)
+ *      * Group ID
+ *      * Shade TEE key derivation
+ *    - Data encrypted with AES-256-GCM
+ *    - Encrypted data uploaded to IPFS
+ *    - Transaction recorded on NEAR blockchain
+ *
+ * 2. KEY MANAGEMENT (Shade TEE):
+ *    - Keys never stored in plaintext
+ *    - Derived on-demand from NEAR account + group ID
+ *    - Shade agents can request ephemeral access tokens
+ *    - Tokens signed with ed25519 and time-limited
+ *    - Keys exist only in TEE memory during decryption
+ *
+ * 3. DECRYPTION (retrieve):
+ *    - User calls nova.retrieve(groupId, cid)
+ *    - SDK checks authorization via isAuthorized()
+ *    - Key derived in TEE using same process
+ *    - Data fetched from IPFS and decrypted
+ *    - Plaintext returned to authorized user
+ *
+ * 4. GROUP SHARING:
+ *    - Owner calls nova.addGroupMember(groupId, memberAccountId)
+ *    - Member gets access to derived key
+ *    - Member can now decrypt all group files
+ *    - Revocation via revokeGroupMember() rotates keys
+ *
+ * 5. TEE ATTESTATION:
+ *    - Phala Network provides TEE code attestation
+ *    - Checksum verifies Shade agent code integrity
+ *    - getGroupChecksum() returns attestation hash
+ *    - Users can verify their data is processed by correct code
+ *
+ * Security Properties:
+ * ✅ End-to-end encryption (data encrypted before upload)
+ * ✅ Zero-knowledge (service never sees plaintext)
+ * ✅ TEE key derivation (keys never leave secure enclave)
+ * ✅ On-chain access control (authorization on NEAR)
+ * ✅ Key rotation (on member revocation)
+ * ✅ Code attestation (verify TEE integrity)
+ */

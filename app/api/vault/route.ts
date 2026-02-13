@@ -7,7 +7,7 @@ import {
   listVaultFiles,
   getVaultInfo,
 } from '@/lib/nova';
-import { encryptWithShade, getShadeAttestation } from '@/lib/nova-encryption';
+import { encryptAndUpload, getEncryptionInfo } from '@/lib/nova-encryption';
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,27 +37,20 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Encrypt with Shade Agent before upload
-        console.log('🔐 Encrypting with Shade Agent TEE...');
-        const { encrypted, metadata } = await encryptWithShade(
-          JSON.stringify(data),
-          accountId
-        );
-
-        // Upload encrypted data to NOVA vault
-        const uploadCid = await uploadToVault(
+        // Encrypt and upload using NOVA SDK (handles encryption internally)
+        console.log('Encrypting and uploading to NOVA vault...');
+        const metadata = await encryptAndUpload(
           accountId,
           vaultId,
-          encrypted,
+          data,
           filename
         );
 
         return NextResponse.json({
           success: true,
           data: {
-            cid: uploadCid,
-            encryption: metadata,
-            message: 'Data encrypted with Shade Agent and uploaded to NOVA vault',
+            ...metadata,
+            message: 'Data encrypted with AES-256-GCM and uploaded to NOVA vault',
           },
         });
       }
@@ -124,15 +117,21 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      case 'attestation': {
-        // Get Shade Agent attestation for verification
-        const attestation = await getShadeAttestation(accountId);
+      case 'encryption_info': {
+        // Get encryption information for a group
+        if (!vaultId) {
+          return NextResponse.json(
+            { success: false, error: 'vaultId is required' },
+            { status: 400 }
+          );
+        }
+
+        const encryptionInfo = await getEncryptionInfo(accountId, vaultId);
         return NextResponse.json({
           success: true,
           data: {
-            attestation,
-            message: 'Shade Agent attestation retrieved',
-            verified: attestation.verified,
+            ...encryptionInfo,
+            message: 'Encryption info retrieved',
           },
         });
       }

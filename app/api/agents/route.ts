@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  setupDailyRiskMonitor,
   executeRiskAnalysis,
-  listAgents,
-  enableAgent,
-  disableAgent,
-  deleteAgent,
+  getAgentConfig,
 } from '@/lib/nova-agents';
 
 /**
- * POST /api/agents - Manage autonomous NOVA agents
+ * POST /api/agents - Execute risk analysis
  */
 export async function POST(req: NextRequest) {
   try {
-    const { accountId, action, agentId, vaultId } = await req.json();
+    const { accountId, action, groupId } = await req.json();
 
     if (!accountId) {
       return NextResponse.json(
@@ -23,89 +19,20 @@ export async function POST(req: NextRequest) {
     }
 
     switch (action) {
-      case 'setup_risk_monitor': {
-        if (!vaultId) {
-          return NextResponse.json(
-            { success: false, error: 'vaultId is required' },
-            { status: 400 }
-          );
-        }
-
-        console.log(`🤖 Setting up autonomous risk monitor for ${accountId}`);
-        const agent = await setupDailyRiskMonitor(accountId, vaultId);
-
-        return NextResponse.json({
-          success: true,
-          data: {
-            agent,
-            message:
-              'Autonomous risk monitor created. Will analyze portfolio daily at 9:00 AM UTC.',
-          },
-        });
-      }
-
       case 'execute_analysis': {
-        if (!vaultId) {
+        if (!groupId) {
           return NextResponse.json(
-            { success: false, error: 'vaultId is required' },
+            { success: false, error: 'groupId is required' },
             { status: 400 }
           );
         }
 
-        console.log(`📊 Executing manual risk analysis for ${accountId}`);
-        const notification = await executeRiskAnalysis(accountId, vaultId);
+        console.log(`Executing manual risk analysis for ${accountId}`);
+        const notification = await executeRiskAnalysis(accountId, groupId);
 
         return NextResponse.json({
           success: true,
           data: notification,
-        });
-      }
-
-      case 'enable': {
-        if (!agentId) {
-          return NextResponse.json(
-            { success: false, error: 'agentId is required' },
-            { status: 400 }
-          );
-        }
-
-        await enableAgent(accountId, agentId);
-
-        return NextResponse.json({
-          success: true,
-          data: { message: 'Agent enabled successfully' },
-        });
-      }
-
-      case 'disable': {
-        if (!agentId) {
-          return NextResponse.json(
-            { success: false, error: 'agentId is required' },
-            { status: 400 }
-          );
-        }
-
-        await disableAgent(accountId, agentId);
-
-        return NextResponse.json({
-          success: true,
-          data: { message: 'Agent disabled successfully' },
-        });
-      }
-
-      case 'delete': {
-        if (!agentId) {
-          return NextResponse.json(
-            { success: false, error: 'agentId is required' },
-            { status: 400 }
-          );
-        }
-
-        await deleteAgent(accountId, agentId);
-
-        return NextResponse.json({
-          success: true,
-          data: { message: 'Agent deleted successfully' },
         });
       }
 
@@ -125,33 +52,38 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * GET /api/agents - List all autonomous agents for user
+ * GET /api/agents - Get agent configuration
  */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const accountId = searchParams.get('accountId');
+    const groupId = searchParams.get('groupId');
 
-    if (!accountId) {
+    if (!accountId || !groupId) {
       return NextResponse.json(
-        { success: false, error: 'accountId is required' },
+        { success: false, error: 'accountId and groupId are required' },
         { status: 400 }
       );
     }
 
-    const agents = await listAgents(accountId);
+    const agentConfig = await getAgentConfig(accountId, groupId);
+
+    if (!agentConfig) {
+      return NextResponse.json(
+        { success: false, error: 'No agent configured or no access to group' },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      data: {
-        agents,
-        count: agents.length,
-      },
+      data: agentConfig,
     });
   } catch (error: any) {
     console.error('Agents GET error:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to list agents' },
+      { success: false, error: error.message || 'Failed to get agent config' },
       { status: 500 }
     );
   }

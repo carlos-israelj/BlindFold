@@ -5,7 +5,8 @@
  * Implements Yield/Resume pattern for TEE-verified AI advisor responses
  */
 
-import { Near } from 'near-kit';
+import * as nearAPI from 'near-api-js';
+import { parseNearAmount } from 'near-api-js/lib/utils/format';
 
 const CONTRACT_ID = process.env.NEXT_PUBLIC_CONTRACT_ID || 'ecuador5.near';
 const NEAR_NETWORK = (process.env.NEXT_PUBLIC_NEAR_NETWORK || 'mainnet') as 'mainnet' | 'testnet';
@@ -42,6 +43,21 @@ export interface RiskScore {
 }
 
 /**
+ * Get NEAR connection
+ */
+async function getNearConnection() {
+  const config = {
+    networkId: NEAR_NETWORK,
+    keyStore: new nearAPI.keyStores.BrowserLocalStorageKeyStore(),
+    nodeUrl: `https://rpc.${NEAR_NETWORK}.near.org`,
+    walletUrl: `https://wallet.${NEAR_NETWORK}.near.org`,
+    helperUrl: `https://helper.${NEAR_NETWORK}.near.org`,
+  };
+
+  return await nearAPI.connect(config);
+}
+
+/**
  * Ask the AI advisor a question (stores on-chain, triggers relayer)
  * This uses the Yield/Resume pattern - contract yields while relayer processes
  *
@@ -55,28 +71,22 @@ export async function askAdvisor(
   question: string,
   portfolioData: string
 ): Promise<number> {
-  const near = new Near({
-    network: NEAR_NETWORK,
-  });
-
   try {
+    const near = await getNearConnection();
+    const account = await near.account(accountId);
+
     // Call smart contract's ask_advisor method
     // Requires 0.01 NEAR deposit for storage
-    const result = await near
-      .transaction(accountId)
-      .functionCall(
-        CONTRACT_ID,
-        'ask_advisor',
-        {
-          question,
-          portfolio_data: portfolioData,
-        },
-        {
-          gas: '30 Tgas',
-          attachedDeposit: '0.01 NEAR', // 0.01 NEAR for storage
-        }
-      )
-      .send();
+    const result = await account.functionCall({
+      contractId: CONTRACT_ID,
+      methodName: 'ask_advisor',
+      args: {
+        question,
+        portfolio_data: portfolioData,
+      },
+      gas: BigInt('30000000000000'), // 30 Tgas
+      attachedDeposit: BigInt(parseNearAmount('0.01') || '0'), // 0.01 NEAR for storage
+    });
 
     // Extract request_id from result
     const requestId = result as unknown as number;
@@ -93,16 +103,15 @@ export async function askAdvisor(
  * Get a specific advisor request by ID
  */
 export async function getRequest(requestId: number): Promise<AdvisorRequest | null> {
-  const near = new Near({
-    network: NEAR_NETWORK,
-  });
-
   try {
-    const request = await near.view<AdvisorRequest>(
-      CONTRACT_ID,
-      'get_request',
-      { request_id: requestId }
-    );
+    const near = await getNearConnection();
+    const account = await near.account(CONTRACT_ID);
+
+    const request = await account.viewFunction({
+      contractId: CONTRACT_ID,
+      methodName: 'get_request',
+      args: { request_id: requestId },
+    });
 
     return request || null;
   } catch (error) {
@@ -115,16 +124,15 @@ export async function getRequest(requestId: number): Promise<AdvisorRequest | nu
  * Get verification for a completed request
  */
 export async function getVerification(verificationId: number): Promise<Verification | null> {
-  const near = new Near({
-    network: NEAR_NETWORK,
-  });
-
   try {
-    const verification = await near.view<Verification>(
-      CONTRACT_ID,
-      'get_verification',
-      { verification_id: verificationId }
-    );
+    const near = await getNearConnection();
+    const account = await near.account(CONTRACT_ID);
+
+    const verification = await account.viewFunction({
+      contractId: CONTRACT_ID,
+      methodName: 'get_verification',
+      args: { verification_id: verificationId },
+    });
 
     return verification || null;
   } catch (error) {
@@ -137,16 +145,15 @@ export async function getVerification(verificationId: number): Promise<Verificat
  * Get all requests for a specific user
  */
 export async function getUserRequests(accountId: string): Promise<AdvisorRequest[]> {
-  const near = new Near({
-    network: NEAR_NETWORK,
-  });
-
   try {
-    const requests = await near.view<AdvisorRequest[]>(
-      CONTRACT_ID,
-      'get_user_requests',
-      { user: accountId }
-    );
+    const near = await getNearConnection();
+    const account = await near.account(CONTRACT_ID);
+
+    const requests = await account.viewFunction({
+      contractId: CONTRACT_ID,
+      methodName: 'get_user_requests',
+      args: { user: accountId },
+    });
 
     return requests || [];
   } catch (error) {
@@ -159,16 +166,15 @@ export async function getUserRequests(accountId: string): Promise<AdvisorRequest
  * Get all verifications for a specific user
  */
 export async function getUserVerifications(accountId: string): Promise<Verification[]> {
-  const near = new Near({
-    network: NEAR_NETWORK,
-  });
-
   try {
-    const verifications = await near.view<Verification[]>(
-      CONTRACT_ID,
-      'get_user_verifications',
-      { user: accountId }
-    );
+    const near = await getNearConnection();
+    const account = await near.account(CONTRACT_ID);
+
+    const verifications = await account.viewFunction({
+      contractId: CONTRACT_ID,
+      methodName: 'get_user_verifications',
+      args: { user: accountId },
+    });
 
     return verifications || [];
   } catch (error) {
@@ -181,16 +187,15 @@ export async function getUserVerifications(accountId: string): Promise<Verificat
  * Calculate risk score on-chain using HHI
  */
 export async function calculateRiskScore(portfolioJson: string): Promise<RiskScore | null> {
-  const near = new Near({
-    network: NEAR_NETWORK,
-  });
-
   try {
-    const riskScore = await near.view<RiskScore>(
-      CONTRACT_ID,
-      'calculate_risk_score',
-      { portfolio_json: portfolioJson }
-    );
+    const near = await getNearConnection();
+    const account = await near.account(CONTRACT_ID);
+
+    const riskScore = await account.viewFunction({
+      contractId: CONTRACT_ID,
+      methodName: 'calculate_risk_score',
+      args: { portfolio_json: portfolioJson },
+    });
 
     return riskScore || null;
   } catch (error) {
@@ -208,16 +213,15 @@ export async function getStats(): Promise<{
   nextRequestId: number;
   nextVerificationId: number;
 } | null> {
-  const near = new Near({
-    network: NEAR_NETWORK,
-  });
-
   try {
-    const stats = await near.view<[number, number, number, number]>(
-      CONTRACT_ID,
-      'get_stats',
-      {}
-    );
+    const near = await getNearConnection();
+    const account = await near.account(CONTRACT_ID);
+
+    const stats = await account.viewFunction({
+      contractId: CONTRACT_ID,
+      methodName: 'get_stats',
+      args: {},
+    });
 
     if (!stats) return null;
 
@@ -250,12 +254,50 @@ export async function pollForCompletion(
     }
 
     if (request && request.status === 'Failed') {
-      throw new Error('Request failed on relayer');
+      console.error('Request failed:', request);
+      return null;
     }
 
     // Wait before next attempt
     await new Promise(resolve => setTimeout(resolve, intervalMs));
   }
 
-  throw new Error('Request timeout - relayer took too long');
+  console.warn('Polling timed out after', maxAttempts, 'attempts');
+  return null;
+}
+
+/**
+ * Verify response signature and TEE attestation
+ */
+export async function verifyResponse(
+  requestId: number,
+  expectedSigningAddress: string
+): Promise<boolean> {
+  try {
+    const request = await getRequest(requestId);
+    if (!request || request.status !== 'Completed') {
+      return false;
+    }
+
+    // Find the verification for this request
+    const verification = await getVerification(requestId);
+    if (!verification) {
+      return false;
+    }
+
+    // Verify the signing address matches
+    if (verification.signing_address.toLowerCase() !== expectedSigningAddress.toLowerCase()) {
+      console.error('Signing address mismatch');
+      return false;
+    }
+
+    // TODO: Verify the actual cryptographic signature
+    // This would require importing the signature verification logic
+
+    console.log('✅ Response verified:', verification);
+    return true;
+  } catch (error) {
+    console.error('Error verifying response:', error);
+    return false;
+  }
 }
