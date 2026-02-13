@@ -68,6 +68,37 @@ export async function POST(request: NextRequest) {
 
     console.log(`Portfolio uploaded successfully. CID: ${result.cid}`);
 
+    // Update or create vault record with new CID
+    const user = await prisma.user.findUnique({
+      where: { accountId },
+    });
+
+    if (user) {
+      await prisma.vault.upsert({
+        where: { groupId },
+        update: {
+          novaCid: result.cid,
+          updatedAt: new Date(),
+        },
+        create: {
+          userId: user.id,
+          groupId,
+          novaCid: result.cid,
+        },
+      });
+
+      // Create snapshot record
+      await prisma.vaultSnapshot.create({
+        data: {
+          vaultId: groupId,
+          novaCid: result.cid,
+          portfolioHash: Buffer.from(JSON.stringify(portfolioData)).toString('base64'),
+        },
+      });
+
+      console.log(`✅ Vault updated in database with CID: ${result.cid}`);
+    }
+
     // Calculate total value for response
     const totalValue = assets.reduce((sum: number, asset: PortfolioAsset) => sum + asset.value, 0);
 

@@ -10,6 +10,15 @@ export interface PortfolioAsset {
   value: number;
 }
 
+export interface SwapRecommendation {
+  action: 'sell' | 'buy';
+  symbol: string;
+  currentPercentage: number;
+  targetPercentage: number;
+  amountUSD: number;
+  reason: string;
+}
+
 export interface RiskAnalysis {
   timestamp: Date;
   agentId: string;
@@ -22,6 +31,7 @@ export interface RiskAnalysis {
     assetsCount: number;
     totalValue: number;
   };
+  recommendations?: SwapRecommendation[];
 }
 
 /**
@@ -47,6 +57,95 @@ function calculateHHI(assets: PortfolioAsset[]): number {
 }
 
 /**
+ * Generate swap recommendations to reduce portfolio concentration
+ */
+function generateRebalancingRecommendations(
+  assets: PortfolioAsset[],
+  hhi: number
+): SwapRecommendation[] {
+  if (!assets || assets.length === 0 || hhi < 2500) {
+    return [];
+  }
+
+  const totalValue = assets.reduce((sum, asset) => sum + asset.value, 0);
+  const recommendations: SwapRecommendation[] = [];
+
+  // Sort assets by value descending
+  const sortedAssets = [...assets].sort((a, b) => b.value - a.value);
+
+  // Calculate current percentages
+  const assetsWithPercentage = sortedAssets.map(asset => ({
+    ...asset,
+    percentage: (asset.value / totalValue) * 100
+  }));
+
+  // Find overconcentrated assets (>25% of portfolio)
+  const overconcentrated = assetsWithPercentage.filter(a => a.percentage > 25);
+
+  if (overconcentrated.length > 0) {
+    // For each overconcentrated asset, recommend reducing to 20-25%
+    for (const asset of overconcentrated) {
+      const targetPercentage = 20; // Target 20% max per asset
+      const excessPercentage = asset.percentage - targetPercentage;
+      const sellAmount = (excessPercentage / 100) * totalValue;
+
+      recommendations.push({
+        action: 'sell',
+        symbol: asset.symbol,
+        currentPercentage: Math.round(asset.percentage * 100) / 100,
+        targetPercentage,
+        amountUSD: Math.round(sellAmount * 100) / 100,
+        reason: `Reduce concentration from ${Math.round(asset.percentage)}% to ${targetPercentage}%`
+      });
+    }
+
+    // Recommend diversifying into other assets
+    const underweighted = assetsWithPercentage.filter(a => a.percentage < 15);
+
+    if (underweighted.length > 0) {
+      // Recommend buying more of existing underweighted assets
+      const totalToRedistribute = recommendations.reduce((sum, r) => sum + r.amountUSD, 0);
+      const amountPerAsset = totalToRedistribute / underweighted.length;
+
+      for (const asset of underweighted) {
+        const targetPercentage = Math.min(20, asset.percentage + 10);
+        recommendations.push({
+          action: 'buy',
+          symbol: asset.symbol,
+          currentPercentage: Math.round(asset.percentage * 100) / 100,
+          targetPercentage: Math.round(targetPercentage * 100) / 100,
+          amountUSD: Math.round(amountPerAsset * 100) / 100,
+          reason: `Increase allocation to improve diversification`
+        });
+      }
+    } else {
+      // Recommend buying new assets for diversification
+      const suggestedAssets = ['ETH', 'BTC', 'USDC', 'USDT'].filter(
+        symbol => !assets.find(a => a.symbol === symbol)
+      );
+
+      if (suggestedAssets.length > 0) {
+        const totalToRedistribute = recommendations.reduce((sum, r) => sum + r.amountUSD, 0);
+        const amountPerAsset = totalToRedistribute / Math.min(suggestedAssets.length, 2);
+
+        for (const symbol of suggestedAssets.slice(0, 2)) {
+          recommendations.push({
+            action: 'buy',
+            symbol,
+            currentPercentage: 0,
+            targetPercentage: 15,
+            amountUSD: Math.round(amountPerAsset * 100) / 100,
+            reason: `Add new asset for better diversification`
+          });
+        }
+      }
+    }
+  }
+
+  return recommendations;
+}
+
+/**
  * Analyze portfolio risk
  */
 export async function analyzePortfolioRisk(
@@ -58,8 +157,17 @@ export async function analyzePortfolioRisk(
     // Retrieve and decrypt portfolio
     const portfolio = await retrievePortfolio(accountId, groupId, cid);
 
-    // Calculate HHI
-    const assets = portfolio.assets || [];
+    // Support both 'assets' (from PortfolioForm) and 'holdings' (from wallet)
+    let assets = portfolio.assets || portfolio.holdings || [];
+
+    // If holdings don't have 'value', add it (using balance as approximation)
+    if (assets.length > 0 && !assets[0].value && assets[0].balance) {
+      assets = assets.map((asset: any) => ({
+        ...asset,
+        value: parseFloat(asset.balance) || 0
+      }));
+    }
+
     const hhi = calculateHHI(assets);
 
     // Determine concentration level
@@ -92,6 +200,9 @@ export async function analyzePortfolioRisk(
 
     const totalValue = assets.reduce((sum: number, asset: PortfolioAsset) => sum + asset.value, 0);
 
+    // Generate rebalancing recommendations if needed
+    const recommendations = generateRebalancingRecommendations(assets, hhi);
+
     return {
       timestamp: new Date(),
       agentId: 'shade-risk-monitor',
@@ -104,6 +215,7 @@ export async function analyzePortfolioRisk(
         assetsCount: assets.length,
         totalValue,
       },
+      recommendations: recommendations.length > 0 ? recommendations : undefined,
     };
   } catch (error: any) {
     console.error('Risk analysis failed:', error);
@@ -143,13 +255,44 @@ export async function sendNotification(analysis: RiskAnalysis): Promise<void> {
   console.log(`  Concentration: ${analysis.data.concentration}`);
   console.log(`  Assets: ${analysis.data.assetsCount}`);
   console.log(`  Total Value: $${analysis.data.totalValue.toFixed(2)}`);
+
+  if (analysis.recommendations && analysis.recommendations.length > 0) {
+    console.log('\n💡 REBALANCING RECOMMENDATIONS:');
+    for (const rec of analysis.recommendations) {
+      const emoji = rec.action === 'sell' ? '📉' : '📈';
+      console.log(`  ${emoji} ${rec.action.toUpperCase()} ${rec.symbol}`);
+      console.log(`     Current: ${rec.currentPercentage}% → Target: ${rec.targetPercentage}%`);
+      console.log(`     Amount: $${rec.amountUSD.toFixed(2)}`);
+      console.log(`     Reason: ${rec.reason}`);
+    }
+  }
+
   console.log('='.repeat(60) + '\n');
 
-  // TODO: Add webhook integration for production
-  // Example:
-  // await fetch(process.env.WEBHOOK_URL, {
-  //   method: 'POST',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify(analysis)
-  // });
+  // Send to frontend webhook to store in database
+  const frontendUrl = process.env.FRONTEND_URL || process.env.WEBHOOK_URL;
+  if (frontendUrl) {
+    try {
+      const webhookEndpoint = frontendUrl.endsWith('/api/agents/alerts')
+        ? frontendUrl
+        : `${frontendUrl}/api/agents/alerts`;
+
+      const response = await fetch(webhookEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(analysis)
+      });
+
+      if (response.ok) {
+        console.log('✅ Alert sent to frontend successfully');
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Frontend webhook failed:', response.status, errorText);
+      }
+    } catch (error) {
+      console.error('❌ Frontend webhook failed:', error);
+    }
+  } else {
+    console.log('⚠️  No FRONTEND_URL or WEBHOOK_URL configured - alerts only logged locally');
+  }
 }

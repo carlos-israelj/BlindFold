@@ -8,13 +8,26 @@ import ChatInterface from '@/components/ChatInterface';
 import PortfolioSidebar from '@/components/PortfolioSidebar';
 import NovaSetupBanner from '@/components/NovaSetupBanner';
 import PortfolioForm, { PortfolioAsset } from '@/components/PortfolioForm';
+import AlertBanner from '@/components/AlertBanner';
+import SwapModal from '@/components/SwapModal';
 import Link from 'next/link';
+
+interface SwapRecommendation {
+  action: 'sell' | 'buy';
+  symbol: string;
+  currentPercentage: number;
+  targetPercentage: number;
+  amountUSD: number;
+  reason: string;
+}
 
 export default function ChatPage() {
   const { isConnected, accountId, disconnect } = useWallet();
   const { vaultId } = useVault();
   const router = useRouter();
   const [showPortfolioForm, setShowPortfolioForm] = useState(false);
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [selectedSwapRecommendation, setSelectedSwapRecommendation] = useState<SwapRecommendation | null>(null);
 
   useEffect(() => {
     if (!isConnected) {
@@ -46,6 +59,11 @@ export default function ChatPage() {
       console.error('Error saving portfolio:', error);
       throw error;
     }
+  };
+
+  const handleSwapClick = (recommendation: SwapRecommendation) => {
+    setSelectedSwapRecommendation(recommendation);
+    setShowSwapModal(true);
   };
 
   if (!isConnected) {
@@ -119,10 +137,25 @@ export default function ChatPage() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col">
+          {/* Alert Banner */}
+          <div className="px-6 pt-4">
+            <AlertBanner onSwapClick={handleSwapClick} />
+          </div>
+
           <ChatInterface />
         </div>
         <PortfolioSidebar />
       </div>
+
+      {/* Swap Modal */}
+      <SwapModal
+        isOpen={showSwapModal}
+        onClose={() => {
+          setShowSwapModal(false);
+          setSelectedSwapRecommendation(null);
+        }}
+        recommendation={selectedSwapRecommendation}
+      />
     </div>
   );
 }

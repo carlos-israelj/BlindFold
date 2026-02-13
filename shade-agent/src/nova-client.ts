@@ -15,10 +15,10 @@ export async function getNovaClient(accountId: string): Promise<NovaSdk> {
   }
 
   const network = process.env.NEAR_NETWORK || 'testnet';
-  const privateKey = process.env.NEAR_PRIVATE_KEY;
+  const apiKey = process.env.NOVA_API_KEY;
 
-  if (!privateKey) {
-    throw new Error('NEAR_PRIVATE_KEY environment variable is required');
+  if (!apiKey) {
+    throw new Error('NOVA_API_KEY environment variable is required');
   }
 
   // Determine RPC based on network
@@ -26,26 +26,58 @@ export async function getNovaClient(accountId: string): Promise<NovaSdk> {
     ? 'https://rpc.mainnet.near.org'
     : 'https://rpc.testnet.near.org';
 
-  // Initialize NOVA SDK
-  // Note: contractId is auto-detected based on network
-  novaClient = new NovaSdk(accountId, {
+  // Use NOVA account ID (e.g., ecuador10.nova-sdk.near) instead of wallet address
+  const novaAccountId = process.env.NOVA_ACCOUNT_ID || accountId;
+
+  // Initialize NOVA SDK with API key
+  novaClient = new NovaSdk(novaAccountId, {
     rpcUrl,
+    apiKey,
   });
 
   return novaClient;
 }
 
 /**
- * Get latest portfolio CID from environment variable
+ * Get latest portfolio CID
  *
- * Since Shade Agent is READ-ONLY, the CID should be provided
- * via environment variable after portfolio upload from web interface.
+ * First tries to fetch from the frontend API (automatic),
+ * then falls back to environment variable (manual).
  */
 export async function getLatestPortfolioCid(
   accountId: string,
   groupId: string
 ): Promise<string | null> {
-  // Check if CID is provided via environment variable
+  // Try to fetch from frontend API first
+  const frontendUrl = process.env.FRONTEND_URL;
+
+  if (frontendUrl) {
+    try {
+      const apiUrl = `${frontendUrl}/api/vault/latest-cid?accountId=${accountId}&groupId=${groupId}`;
+      console.log(`📡 Fetching latest CID from API: ${apiUrl}`);
+
+      const response = await fetch(apiUrl);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data.cid) {
+          console.log(`✅ Latest CID from API: ${data.data.cid}`);
+          console.log(`   Last updated: ${data.data.updatedAt}`);
+          return data.data.cid;
+        }
+      } else if (response.status === 404) {
+        console.log('ℹ️  No portfolio found in vault yet');
+        return null;
+      } else {
+        console.log(`⚠️  API returned ${response.status}, falling back to environment variable`);
+      }
+    } catch (error: any) {
+      console.log(`⚠️  Failed to fetch from API: ${error.message}`);
+      console.log('   Falling back to environment variable...');
+    }
+  }
+
+  // Fallback to environment variable
   const envCid = process.env.PORTFOLIO_CID;
 
   if (envCid) {
@@ -53,9 +85,8 @@ export async function getLatestPortfolioCid(
     return envCid;
   }
 
-  console.log('⚠️  No PORTFOLIO_CID set in environment.');
-  console.log('💡 Upload your portfolio through the web interface,');
-  console.log('   then set PORTFOLIO_CID environment variable with the returned CID.');
+  console.log('⚠️  No PORTFOLIO_CID available from API or environment.');
+  console.log('💡 Upload your portfolio through the web interface.');
 
   return null;
 }

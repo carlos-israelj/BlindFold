@@ -77,3 +77,23 @@ model RateLimitEntry {
   @@index([key])
   @@index([windowStart])
 }
+
+model RiskAlert {
+  id            String   @id @default(cuid())
+  accountId     String
+  severity      String   // 'info' | 'warning' | 'critical'
+  message       String
+  hhi           Int
+  concentration String   // 'Low' | 'Medium' | 'High'
+  assetsCount   Int
+  totalValue    Float
+  recommendations Json?  // Array of swap recommendations
+  acknowledged  Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([accountId])
+  @@index([severity])
+  @@index([acknowledged])
+  @@index([createdAt])
+}

@@ -3,6 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { getSwapQuote, executeSwap } from '@/lib/hot-kit';
 
+interface SwapRecommendation {
+  action: 'sell' | 'buy';
+  symbol: string;
+  currentPercentage: number;
+  targetPercentage: number;
+  amountUSD: number;
+  reason: string;
+}
+
 interface SwapModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -10,6 +19,7 @@ interface SwapModalProps {
   defaultFromChain?: string;
   suggestedAmount?: string;
   suggestedToToken?: string;
+  recommendation?: SwapRecommendation | null;
 }
 
 export function SwapModal({
@@ -19,16 +29,45 @@ export function SwapModal({
   defaultFromChain = 'NEAR',
   suggestedAmount,
   suggestedToToken = 'USDC',
+  recommendation,
 }: SwapModalProps) {
+  // Pre-fill based on recommendation if provided
+  const getInitialFromToken = () => {
+    if (recommendation?.action === 'sell') return recommendation.symbol;
+    return defaultFromToken;
+  };
+
+  const getInitialToToken = () => {
+    if (recommendation?.action === 'buy') return recommendation.symbol;
+    return suggestedToToken;
+  };
+
+  const getInitialAmount = () => {
+    if (recommendation?.amountUSD) return recommendation.amountUSD.toString();
+    return suggestedAmount || '';
+  };
+
   const [fromChain, setFromChain] = useState(defaultFromChain);
-  const [fromToken, setFromToken] = useState(defaultFromToken);
+  const [fromToken, setFromToken] = useState(getInitialFromToken());
   const [toChain, setToChain] = useState('NEAR');
-  const [toToken, setToToken] = useState(suggestedToToken);
-  const [amount, setAmount] = useState(suggestedAmount || '');
+  const [toToken, setToToken] = useState(getInitialToToken());
+  const [amount, setAmount] = useState(getInitialAmount());
   const [quote, setQuote] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Update values when recommendation changes
+  useEffect(() => {
+    if (recommendation) {
+      if (recommendation.action === 'sell') {
+        setFromToken(recommendation.symbol);
+      } else {
+        setToToken(recommendation.symbol);
+      }
+      setAmount(recommendation.amountUSD.toString());
+    }
+  }, [recommendation]);
 
   const chains = [
     'NEAR',
@@ -132,6 +171,26 @@ export function SwapModal({
             </svg>
           </button>
         </div>
+
+        {/* Recommendation Banner */}
+        {recommendation && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <span className="text-lg">{recommendation.action === 'sell' ? '📉' : '📈'}</span>
+              <div className="flex-1">
+                <div className="font-medium text-blue-900 text-sm">
+                  AI Recommendation: {recommendation.action.toUpperCase()} {recommendation.symbol}
+                </div>
+                <div className="text-xs text-blue-700 mt-1">
+                  {recommendation.reason}
+                </div>
+                <div className="text-xs text-blue-600 mt-1">
+                  Target: {recommendation.currentPercentage}% → {recommendation.targetPercentage}%
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* From */}
         <div className="mb-4">
@@ -280,3 +339,5 @@ export function SwapModal({
     </div>
   );
 }
+
+export default SwapModal;
