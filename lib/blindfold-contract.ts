@@ -73,7 +73,7 @@ export async function askAdvisor(
         },
         {
           gas: '30 Tgas',
-          attachedDeposit: '10000000000000000000000', // 0.01 NEAR
+          attachedDeposit: '0.01 NEAR', // 0.01 NEAR for storage
         }
       )
       .send();
