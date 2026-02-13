@@ -59,8 +59,8 @@ export async function getLatestPortfolioCid(
       const response = await fetch(apiUrl);
 
       if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data.cid) {
+        const data: any = await response.json();
+        if (data.success && data.data && data.data.cid) {
           console.log(`✅ Latest CID from API: ${data.data.cid}`);
           console.log(`   Last updated: ${data.data.updatedAt}`);
           return data.data.cid;

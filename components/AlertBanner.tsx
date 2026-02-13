@@ -30,27 +30,27 @@ interface AlertBannerProps {
 }
 
 export default function AlertBanner({ onSwapClick }: AlertBannerProps) {
-  const { connectedAccount } = useWallet();
+  const { accountId } = useWallet();
   const [alerts, setAlerts] = useState<RiskAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedAlert, setExpandedAlert] = useState<string | null>(null);
 
   useEffect(() => {
-    if (connectedAccount) {
+    if (accountId) {
       fetchAlerts();
       // Poll for new alerts every 30 seconds
       const interval = setInterval(fetchAlerts, 30000);
       return () => clearInterval(interval);
     }
-  }, [connectedAccount]);
+  }, [accountId]);
 
   const fetchAlerts = async () => {
-    if (!connectedAccount) return;
+    if (!accountId) return;
 
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/agents/alerts?accountId=${connectedAccount}&unacknowledged=true`
+        `/api/agents/alerts?accountId=${accountId}&unacknowledged=true`
       );
 
       if (response.ok) {
@@ -80,7 +80,7 @@ export default function AlertBanner({ onSwapClick }: AlertBannerProps) {
     }
   };
 
-  if (!connectedAccount || alerts.length === 0) {
+  if (!accountId || alerts.length === 0) {
     return null;
   }
 
