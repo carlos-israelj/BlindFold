@@ -251,7 +251,7 @@ if __name__ == "__main__":
 
     print(f"🌐 Starting server on {host}:{port}...")
 
-    # FastMCP 2.x: Use run() without arguments, it creates HTTP server automatically
-    # Set HOST and PORT via environment for uvicorn
+    # FastMCP 2.x: Create HTTP ASGI app and run with uvicorn
     import uvicorn
-    uvicorn.run(mcp.get_asgi_app(), host=host, port=port, log_level="info")
+    app = mcp.http_app()
+    uvicorn.run(app, host=host, port=port, log_level="info")
