@@ -247,11 +247,8 @@ if __name__ == "__main__":
 
     # Get port from environment (Render uses PORT env var)
     port = int(os.getenv("PORT", 8000))
-    host = "0.0.0.0"
 
-    print(f"🌐 Starting server on {host}:{port}...")
+    print(f"🌐 Starting server on 0.0.0.0:{port}...")
 
-    # FastMCP 2.x: Create HTTP ASGI app and run with uvicorn
-    import uvicorn
-    app = mcp.http_app()
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    # FastMCP 2.13+ supports transport, host, and port parameters
+    mcp.run(transport="http", host="0.0.0.0", port=port)
