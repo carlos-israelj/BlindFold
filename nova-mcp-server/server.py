@@ -250,9 +250,10 @@ if __name__ == "__main__":
     # Get port from environment (Render uses PORT env var)
     port = int(os.getenv("PORT", 8000))
 
+    # FastMCP uses the app attribute to get the ASGI application
     # Run the MCP server with Uvicorn for production
     uvicorn.run(
-        mcp.get_asgi_app(),
+        mcp.app,
         host="0.0.0.0",
         port=port,
         log_level="info"
