@@ -247,8 +247,11 @@ if __name__ == "__main__":
 
     # Get port from environment (Render uses PORT env var)
     port = int(os.getenv("PORT", 8000))
-
     print(f"🌐 Starting server on port {port}...")
 
-    # FastMCP.run() accepts host and port parameters
-    mcp.run(host="0.0.0.0", port=port)
+    # Set uvicorn environment variables for FastMCP
+    os.environ["UVICORN_HOST"] = "0.0.0.0"
+    os.environ["UVICORN_PORT"] = str(port)
+
+    # FastMCP.run() uses these environment variables internally
+    mcp.run()
