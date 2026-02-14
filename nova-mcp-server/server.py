@@ -237,8 +237,12 @@ async def prepare_retrieve(account_id: str, group_id: str, ipfs_hash: str) -> di
         raise
 
 
-# Create the ASGI app for production
-app = mcp
+# Get the ASGI app from FastMCP - it should be the internal Starlette app
+# FastMCP wraps a Starlette app internally
+try:
+    app = mcp._app if hasattr(mcp, '_app') else mcp.app if hasattr(mcp, 'app') else None
+except:
+    app = None
 
 if __name__ == "__main__":
     import uvicorn
@@ -254,11 +258,13 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     print(f"🌐 Starting server on port {port}...")
 
-    # Run with uvicorn directly
-    uvicorn.run(
-        "server:app",
-        host="0.0.0.0",
-        port=port,
-        log_level="info",
-        access_log=True
-    )
+    # Debug: Check what FastMCP exposes
+    print(f"FastMCP attributes: {[attr for attr in dir(mcp) if not attr.startswith('_')]}")
+
+    # If we found the app, use it; otherwise try mcp directly
+    if app:
+        print(f"Using app: {type(app)}")
+        uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+    else:
+        print("Using mcp.run() fallback")
+        mcp.run()
