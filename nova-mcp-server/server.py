@@ -247,12 +247,11 @@ if __name__ == "__main__":
 
     # Get port from environment (Render uses PORT env var)
     port = int(os.getenv("PORT", 8000))
+    host = "0.0.0.0"
 
-    # FastMCP reads HOST and PORT from environment variables
-    os.environ["HOST"] = "0.0.0.0"
-    os.environ["PORT"] = str(port)
+    print(f"🌐 Starting server on {host}:{port}...")
 
-    print(f"🌐 Starting server on {os.environ['HOST']}:{os.environ['PORT']}...")
-
-    # Use FastMCP's built-in HTTP server
-    mcp.run(transport="http")
+    # FastMCP 2.x: Use run() without arguments, it creates HTTP server automatically
+    # Set HOST and PORT via environment for uvicorn
+    import uvicorn
+    uvicorn.run(mcp.get_asgi_app(), host=host, port=port, log_level="info")
