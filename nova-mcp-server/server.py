@@ -238,6 +238,8 @@ async def prepare_retrieve(account_id: str, group_id: str, ipfs_hash: str) -> di
 
 
 if __name__ == "__main__":
+    import uvicorn
+
     print("=" * 60)
     print("🚀 Starting NOVA MCP Server - BlindFold")
     print("=" * 60)
@@ -245,5 +247,13 @@ if __name__ == "__main__":
     print(f"Pinata configured: ✅")
     print("=" * 60)
 
-    # Run the MCP server
-    mcp.run()
+    # Get port from environment (Render uses PORT env var)
+    port = int(os.getenv("PORT", 8000))
+
+    # Run the MCP server with Uvicorn for production
+    uvicorn.run(
+        mcp.get_asgi_app(),
+        host="0.0.0.0",
+        port=port,
+        log_level="info"
+    )
