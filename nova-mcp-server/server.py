@@ -237,7 +237,12 @@ async def prepare_retrieve(account_id: str, group_id: str, ipfs_hash: str) -> di
         raise
 
 
+# Create the ASGI app for production
+app = mcp
+
 if __name__ == "__main__":
+    import uvicorn
+
     print("=" * 60)
     print("🚀 Starting NOVA MCP Server - BlindFold")
     print("=" * 60)
@@ -249,9 +254,11 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     print(f"🌐 Starting server on port {port}...")
 
-    # Set uvicorn environment variables for FastMCP
-    os.environ["UVICORN_HOST"] = "0.0.0.0"
-    os.environ["UVICORN_PORT"] = str(port)
-
-    # FastMCP.run() uses these environment variables internally
-    mcp.run()
+    # Run with uvicorn directly
+    uvicorn.run(
+        "server:app",
+        host="0.0.0.0",
+        port=port,
+        log_level="info",
+        access_log=True
+    )
