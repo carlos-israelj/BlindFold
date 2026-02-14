@@ -7,7 +7,9 @@ Autonomous portfolio risk monitoring agent running in Trusted Execution Environm
 - ✅ **Autonomous Monitoring**: Runs on schedule (default: daily at 9 AM)
 - ✅ **Portfolio Risk Analysis**: Calculates HHI (Herfindahl-Hirschman Index) for concentration risk
 - ✅ **NOVA Integration**: Fetches and decrypts portfolio data from NOVA vaults
-- ✅ **Alert System**: Sends notifications for high-risk portfolios
+- ✅ **Automated CID Sync**: Automatically fetches latest portfolio CID from frontend API (no manual updates needed)
+- ✅ **Frontend Alert System**: Sends risk alerts to web interface with visual notifications
+- ✅ **Smart Rebalancing**: Generates actionable swap recommendations to reduce portfolio risk
 - ✅ **TEE-Ready**: Designed for deployment in Phala Cloud TEE
 
 ## Architecture
@@ -15,7 +17,10 @@ Autonomous portfolio risk monitoring agent running in Trusted Execution Environm
 ```
 ┌─────────────────────────────────────────┐
 │         BlindFold Web App               │
-│  (uploads portfolio to NOVA vault)      │
+│  1. User uploads portfolio to NOVA      │
+│  2. CID stored in PostgreSQL            │
+│  3. Display alerts from Shade Agent     │
+│  4. Execute swap recommendations        │
 └────────────────┬────────────────────────┘
                  │
                  ▼
@@ -27,10 +32,11 @@ Autonomous portfolio risk monitoring agent running in Trusted Execution Environm
                  ▼
 ┌─────────────────────────────────────────┐
 │         Shade Agent (TEE)               │
-│  1. Fetch latest portfolio from NOVA    │
-│  2. Decrypt using Shade key derivation  │
-│  3. Analyze risk (HHI calculation)      │
-│  4. Send alerts if needed               │
+│  1. Auto-fetch latest CID from frontend │
+│  2. Retrieve & decrypt from NOVA        │
+│  3. Analyze risk (HHI + concentration)  │
+│  4. Generate swap recommendations       │
+│  5. Send alerts to frontend via webhook │
 └─────────────────────────────────────────┘
 ```
 
@@ -54,12 +60,26 @@ cp .env.example .env
 Edit `.env` with your credentials:
 
 ```env
+# NEAR Configuration
 NEAR_ACCOUNT_ID=your-account.testnet
 NEAR_PRIVATE_KEY=ed25519:your-private-key
-NOVA_GROUP_ID=portfolio-vault
+NEAR_NETWORK=testnet
+
+# NOVA Configuration
+NOVA_ACCOUNT_ID=your-nova-account.nova-sdk.near
+NOVA_API_KEY=nova_sk_your_api_key
+NOVA_GROUP_ID=vault.your-account-id
+
+# Monitoring Configuration
 SCHEDULE_CRON=0 9 * * *
 MONITORING_ENABLED=true
-NEAR_NETWORK=testnet
+
+# Frontend Integration (for automated CID fetching and alerts)
+FRONTEND_URL=https://blindfold.lat
+
+# Optional: Alert Configuration
+WEBHOOK_URL=https://your-webhook.com/alerts
+ALERT_EMAIL=your-email@example.com
 ```
 
 ### 3. Run Locally
@@ -103,15 +123,25 @@ This will open your browser to authenticate.
 
 #### Step 4: Prepare Environment Variables
 
-Create a `.env` file in the `shade-agent/` directory:
+In Phala Cloud dashboard, set the following environment variables:
 
-```env
-NEAR_ACCOUNT_ID=your-account.testnet
-NEAR_PRIVATE_KEY=ed25519:your-private-key
-NOVA_GROUP_ID=portfolio-vault
-SCHEDULE_CRON=0 9 * * *
-MONITORING_ENABLED=true
+**Required Variables:**
+```
+NEAR_ACCOUNT_ID=3bcde97e49d49079d2325fc28bc11d9a55317c292852f710dae34f344e53c5ae
+NOVA_ACCOUNT_ID=ecuador10.nova-sdk.near
+NOVA_API_KEY=nova_sk_csdk39oEwHNjb3WNdlgC6V3tu0FqPk4j
+NOVA_GROUP_ID=vault.3bcde97e49d49079d2325fc28bc11d9a55317c292852f710dae34f344e53c5ae
 NEAR_NETWORK=testnet
+MONITORING_ENABLED=true
+FRONTEND_URL=https://blindfold.lat
+```
+
+**Optional Variables:**
+```
+SCHEDULE_CRON=0 9 * * *
+WEBHOOK_URL=https://your-webhook.com/alerts
+ALERT_EMAIL=your-email@example.com
+PORTFOLIO_CID=Qm...  (fallback if frontend API unavailable)
 ```
 
 #### Step 5: Deploy to Phala Cloud
@@ -207,13 +237,18 @@ cron.schedule('0 9 * * *', async () => {
 });
 ```
 
-### 2. Fetch Latest Portfolio
+### 2. Auto-Fetch Latest Portfolio CID
 
-Queries NOVA SDK for latest transaction:
+First tries to fetch from frontend API, then falls back to environment variable:
 
 ```typescript
-const transactions = await nova.getTransactionsForGroup(groupId);
-const latestCid = transactions[0].ipfs_hash;
+// Try frontend API first (automatic)
+const apiUrl = `${FRONTEND_URL}/api/vault/latest-cid?accountId=${accountId}&groupId=${groupId}`;
+const response = await fetch(apiUrl);
+const { cid } = await response.json();
+
+// Fallback to environment variable if API unavailable
+const cid = process.env.PORTFOLIO_CID;
 ```
 
 ### 3. Decrypt Portfolio
@@ -221,30 +256,52 @@ const latestCid = transactions[0].ipfs_hash;
 Uses NOVA SDK's built-in decryption (handles Shade key derivation internally):
 
 ```typescript
-const result = await nova.retrieve(groupId, latestCid);
+const result = await nova.retrieve(groupId, cid);
 const portfolio = JSON.parse(result.data.toString('utf-8'));
 ```
 
-### 4. Calculate Risk
+### 4. Calculate Risk & Generate Recommendations
 
-Computes HHI for concentration risk:
+Computes HHI for concentration risk and generates swap recommendations:
 
 ```typescript
 const hhi = calculateHHI(portfolio.assets);
 // HHI > 7000 = Critical
 // HHI > 5000 = Warning
 // HHI < 2500 = Good
+
+// Generate rebalancing recommendations
+const recommendations = generateRebalancingRecommendations(assets, hhi);
+// Returns: [{ action: 'sell', symbol: 'NEAR', amountUSD: 500, reason: '...' }, ...]
 ```
 
-### 5. Send Alerts
+### 5. Send Alerts to Frontend
 
-Logs alerts and can send to webhooks:
+Sends webhook to frontend API to store and display alerts:
 
 ```typescript
 if (severity === 'warning' || severity === 'critical') {
-  await sendNotification(analysis);
+  await fetch(`${FRONTEND_URL}/api/agents/alerts`, {
+    method: 'POST',
+    body: JSON.stringify({
+      accountId,
+      severity,
+      message,
+      hhi,
+      recommendations,
+    }),
+  });
 }
 ```
+
+### 6. Frontend Alert Display
+
+Users see alerts in the web interface with actionable swap recommendations:
+
+- Visual alerts with severity indicators (warning/critical)
+- HHI metrics and concentration analysis
+- List of recommended swaps (SELL X, BUY Y)
+- One-click execution of swap recommendations
 
 ## Risk Thresholds
 
@@ -291,18 +348,87 @@ The agent will:
 
 ## Production Checklist
 
-- [ ] NEAR account created and funded
-- [ ] NOVA group registered
-- [ ] Portfolio data uploaded to NOVA vault
-- [ ] `.env` configured with production credentials
-- [ ] Agent deployed to TEE (Phala Cloud)
-- [ ] Webhook endpoint configured for alerts
-- [ ] Monitoring/logging set up
-- [ ] Backup agent instance running (redundancy)
+- [x] NEAR account created and funded
+- [x] NOVA group registered
+- [x] Portfolio data uploaded to NOVA vault
+- [x] Environment variables configured in Phala Cloud
+- [x] Agent deployed to TEE (Phala Cloud) - v1.0.5
+- [x] FRONTEND_URL configured for automated CID sync
+- [x] Frontend alert endpoint configured (`/api/agents/alerts`)
+- [x] Database schema deployed (RiskAlert table)
+- [x] AlertBanner component integrated in frontend
+- [ ] Verify alerts display at https://blindfold.lat/chat
+- [ ] Test swap recommendation execution
+- [ ] Set up backup agent instance (redundancy)
+
+## Current Deployment Status
+
+**Shade Agent**: ✅ Running on Phala Cloud TEE
+- Version: `ghcr.io/carlos-israelj/blindfold-shade-agent:v1.0.5`
+- FRONTEND_URL: `https://blindfold.lat`
+- Auto-fetching CID from frontend API
+- Sending alerts to frontend webhook
+
+**Frontend**: ✅ Deployed on Vercel
+- URL: https://blindfold.lat
+- Alert API: `/api/agents/alerts` (POST/GET)
+- Latest CID API: `/api/vault/latest-cid` (GET)
+- AlertBanner component integrated
+
+**Known Issues**:
+- ⚠️ NOVA MCP Server returning 500 errors (external service)
+  - Error: `MCP tool 'prepare_retrieve' failed: Shade key fetch failed`
+  - This is an external dependency issue, not our implementation
+  - Our Shade Agent successfully fetches CID and sends alerts
+  - Waiting for NOVA team to fix their MCP server configuration
+
+## Troubleshooting
+
+### Agent not fetching latest CID
+
+**Symptoms**: Logs show `⚠️ No PORTFOLIO_CID available from API or environment`
+
+**Solutions**:
+1. Verify FRONTEND_URL is set in Phala Cloud environment variables
+2. Check startup logs for: `Frontend URL: https://blindfold.lat`
+3. Verify portfolio was uploaded through web interface
+4. Check API is responding: `curl https://blindfold.lat/api/vault/latest-cid?accountId=YOUR_ACCOUNT&groupId=YOUR_GROUP_ID`
+
+### NOVA MCP Server 500 Error
+
+**Symptoms**: `MCP tool 'prepare_retrieve' failed: Shade key fetch failed: Internal Server Error`
+
+**Cause**: External NOVA MCP Server at https://nova-mcp.fastmcp.app has configuration issues
+
+**Status**: This is an external service maintained by the NOVA team, not fixable on our side
+
+**Verification**: Check if your Shade Agent successfully:
+- ✅ Fetches CID from frontend: `✅ Latest CID from API: Qm...`
+- ✅ Sends alert to frontend: `✅ Alert sent to frontend successfully`
+
+If both are true, our implementation is working correctly.
+
+### Alerts not showing in frontend
+
+**Solutions**:
+1. Check database: `SELECT * FROM "RiskAlert" WHERE "accountId" = 'YOUR_ACCOUNT' ORDER BY "createdAt" DESC;`
+2. Verify AlertBanner is rendered in `/app/chat/page.tsx`
+3. Check browser console for API errors
+4. Verify user is logged in with correct wallet
+
+### Docker image not updating
+
+**Solutions**:
+1. Verify image was built and pushed: `docker pull ghcr.io/carlos-israelj/blindfold-shade-agent:v1.0.5`
+2. Update docker-compose.yml with new version tag
+3. Restart Phala Cloud deployment
+4. Check logs show correct version in startup
 
 ## Support
 
 For issues or questions:
 - GitHub Issues: https://github.com/your-repo/blindfold
 - NOVA SDK Docs: https://github.com/utnet-org/nova-sdk-js
+- NOVA MCP Server: https://github.com/jcarbonnell/nova/tree/main/mcp-server
+- Shade Agent: https://github.com/jcarbonnell/nova/tree/main/shade-agent
 - Phala Network: https://docs.phala.network

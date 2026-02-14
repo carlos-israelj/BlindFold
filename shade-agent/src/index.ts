@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import { NovaSdk } from 'nova-sdk-js';
 import { analyzePortfolioRisk, sendNotification } from './risk-monitor';
 import { getLatestPortfolioCid } from './nova-client';
+import { startShadeKeyApi } from './shade-key-api';
 
 dotenv.config();
 
@@ -59,13 +60,18 @@ async function main() {
   console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'NOT SET'}`);
   console.log('='.repeat(60));
 
+  // Start Shade Key API server (for NOVA MCP Server)
+  console.log('\n🚀 Starting Shade Key API server...\n');
+  startShadeKeyApi();
+
   if (!MONITORING_ENABLED) {
     console.log('Monitoring is disabled. Set MONITORING_ENABLED=true to enable.');
+    console.log('Shade Key API is still running on port', process.env.SHADE_API_PORT || 3001);
     return;
   }
 
   // Run immediately on startup
-  console.log('Running initial analysis...');
+  console.log('\nRunning initial analysis...');
   await runMonitoring();
 
   // Schedule periodic monitoring

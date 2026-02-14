@@ -2,9 +2,13 @@ version: '3.8'
 
 services:
   shade-agent:
-    image: ghcr.io/carlos-israelj/blindfold-shade-agent:v1.0.5
+    image: ghcr.io/carlos-israelj/blindfold-shade-agent:v1.0.6
     container_name: shade-agent
     restart: unless-stopped
+
+    # Expose Shade Key API port
+    ports:
+      - "3001:3001"
 
     # Mount Phala TEE socket for attestation
     volumes:
@@ -25,6 +29,10 @@ services:
       # Monitoring Configuration
       - SCHEDULE_CRON=${SCHEDULE_CRON:-0 9 * * *}
       - MONITORING_ENABLED=${MONITORING_ENABLED:-true}
+
+      # Shade Key API Configuration
+      - SHADE_API_PORT=${SHADE_API_PORT:-3001}
+      - PHALA_TEE=${PHALA_TEE:-true}
 
       # Alert Configuration (optional)
       - WEBHOOK_URL=${WEBHOOK_URL:-}
