@@ -10,6 +10,7 @@ import { decryptApiKey } from '@/lib/encryption';
 export function createNovaClient(accountId: string, apiKey: string): NovaSdk {
   return new NovaSdk(accountId, {
     apiKey,
+    mcpUrl: 'https://nova-mcp-server.onrender.com/mcp',
   });
 }
 
