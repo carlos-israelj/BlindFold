@@ -237,16 +237,7 @@ async def prepare_retrieve(account_id: str, group_id: str, ipfs_hash: str) -> di
         raise
 
 
-# Get the ASGI app from FastMCP - it should be the internal Starlette app
-# FastMCP wraps a Starlette app internally
-try:
-    app = mcp._app if hasattr(mcp, '_app') else mcp.app if hasattr(mcp, 'app') else None
-except:
-    app = None
-
 if __name__ == "__main__":
-    import uvicorn
-
     print("=" * 60)
     print("🚀 Starting NOVA MCP Server - BlindFold")
     print("=" * 60)
@@ -258,13 +249,5 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     print(f"🌐 Starting server on port {port}...")
 
-    # Debug: Check what FastMCP exposes
-    print(f"FastMCP attributes: {[attr for attr in dir(mcp) if not attr.startswith('_')]}")
-
-    # If we found the app, use it; otherwise try mcp directly
-    if app:
-        print(f"Using app: {type(app)}")
-        uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
-    else:
-        print("Using mcp.run() fallback")
-        mcp.run()
+    # Use FastMCP's built-in HTTP server (same as official NOVA MCP)
+    mcp.run(transport="http", host="0.0.0.0", port=port)
