@@ -66,19 +66,24 @@ export async function POST(request: NextRequest) {
       `portfolio-${Date.now()}.json`
     );
 
-    console.log(`Portfolio uploaded successfully. Full result:`, result);
+    console.log(`Portfolio uploaded successfully.`);
+    console.log(`Result type:`, typeof result);
+    console.log(`Result keys:`, Object.keys(result || {}));
+    console.log(`Full result:`, JSON.stringify(result, null, 2));
 
     // The SDK might return ipfs_hash instead of cid
     // Use type assertion to access possible fields
     const resultAny = result as any;
-    const ipfsCid = result.cid || resultAny.ipfs_hash || resultAny.ipfsHash;
+    const ipfsCid = result.cid || resultAny.ipfs_hash || resultAny.ipfsHash || resultAny.IpfsHash;
+
+    console.log(`Extracted CID: ${ipfsCid}`);
 
     if (!ipfsCid) {
-      console.error('No CID found in upload result:', result);
-      throw new Error('Upload succeeded but no IPFS CID was returned');
+      console.error('No CID found in upload result. Result object:', result);
+      throw new Error(`Upload succeeded but no IPFS CID was returned. Result: ${JSON.stringify(result)}`);
     }
 
-    console.log(`IPFS CID: ${ipfsCid}`);
+    console.log(`✅ IPFS CID: ${ipfsCid}`);
 
     // Update or create vault record with new CID
     const user = await prisma.user.findUnique({
