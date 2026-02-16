@@ -21,11 +21,17 @@ export function createNovaClient(accountId: string, apiKey: string): NovaSdk {
  */
 export async function getNovaClient(accountId: string): Promise<NovaSdk | null> {
   try {
+    console.log(`[getNovaClient] Looking up user: ${accountId}`);
+
     // Find user by accountId
     const user = await prisma.user.findUnique({
       where: { accountId },
       select: { novaApiKey: true, novaAccountId: true },
     });
+
+    console.log(`[getNovaClient] User found:`, !!user);
+    console.log(`[getNovaClient] Has novaApiKey:`, !!user?.novaApiKey);
+    console.log(`[getNovaClient] Has novaAccountId:`, !!user?.novaAccountId);
 
     if (!user || !user.novaApiKey || !user.novaAccountId) {
       console.warn(`NOVA credentials not found for ${accountId}`);
@@ -33,29 +39,39 @@ export async function getNovaClient(accountId: string): Promise<NovaSdk | null> 
     }
 
     // Decrypt API key
+    console.log(`[getNovaClient] Decrypting API key...`);
     const apiKey = await decryptApiKey(user.novaApiKey);
+    console.log(`[getNovaClient] API key decrypted successfully`);
 
     // Create client with NOVA account ID (not wallet address)
+    console.log(`[getNovaClient] Creating NOVA client for ${user.novaAccountId}`);
     return createNovaClient(user.novaAccountId, apiKey);
   } catch (error) {
-    console.error('Error getting NOVA client:', error);
+    console.error('[getNovaClient] Error getting NOVA client:', error);
     return null;
   }
 }
 
 export async function createVault(accountId: string): Promise<string> {
+  console.log(`[createVault] Starting vault creation for: ${accountId}`);
+
   const nova = await getNovaClient(accountId);
   const vaultId = `vault.${accountId}`;
 
+  console.log(`[createVault] NOVA client obtained:`, !!nova);
+
   if (!nova) {
+    console.error(`[createVault] NOVA client is null for ${accountId}`);
     throw new Error('NOVA vault service is not available. Please save your NOVA API key first.');
   }
 
   try {
+    console.log(`[createVault] Registering group: ${vaultId}`);
     await nova.registerGroup(vaultId);
+    console.log(`[createVault] ✅ Vault created successfully: ${vaultId}`);
     return vaultId;
   } catch (error) {
-    console.error('Error creating vault:', error);
+    console.error('[createVault] Error creating vault:', error);
     throw error;
   }
 }
