@@ -143,23 +143,26 @@ async def _finalize_upload_handler(request: Request):
         data = await request.json()
         account_id = request.headers.get("X-Account-Id", "")
 
-        # Log ALL received data for debugging
         print(f"\n📤 finalize_upload called:")
-        print(f"   Headers: {dict(request.headers)}")
-        print(f"   Received data keys: {list(data.keys())}")
-        print(f"   Full data: {data}")
-
-        group_id = data.get("group_id", "")
-        encrypted_data_b64 = data.get("encrypted_data_b64", "")
-        file_hash = data.get("file_hash", "")
-        filename = data.get("filename", "")
-
-        print(f"\n📤 Parsed values:")
         print(f"   Account: {account_id}")
-        print(f"   Group: {group_id}")
+        print(f"   Received data keys: {list(data.keys())}")
+
+        # SDK sends: upload_id, encrypted_data, file_hash
+        # We need to extract the data in the format SDK provides
+        upload_id = data.get("upload_id", "")
+        encrypted_data_b64 = data.get("encrypted_data", "")  # SDK uses 'encrypted_data', not 'encrypted_data_b64'
+        file_hash = data.get("file_hash", "")
+
+        # Generate filename from upload_id if not provided
+        filename = data.get("filename", f"file-{upload_id}.enc")
+
+        print(f"   Upload ID: {upload_id}")
+        print(f"   File hash: {file_hash}")
         print(f"   Filename: {filename}")
         print(f"   Has encrypted data: {bool(encrypted_data_b64)}")
-        print(f"   File hash: {file_hash}")
+
+        if not encrypted_data_b64:
+            raise Exception("Missing encrypted_data in request")
 
         import base64
         encrypted_data = base64.b64decode(encrypted_data_b64)
