@@ -69,7 +69,9 @@ export async function POST(request: NextRequest) {
     console.log(`Portfolio uploaded successfully. Full result:`, result);
 
     // The SDK might return ipfs_hash instead of cid
-    const ipfsCid = result.cid || result.ipfs_hash || result.ipfsHash;
+    // Use type assertion to access possible fields
+    const resultAny = result as any;
+    const ipfsCid = result.cid || resultAny.ipfs_hash || resultAny.ipfsHash;
 
     if (!ipfsCid) {
       console.error('No CID found in upload result:', result);
@@ -115,7 +117,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       cid: ipfsCid,
-      transactionId: result.trans_id || result.file_hash,
+      transactionId: result.trans_id || resultAny.file_hash,
       groupId,
       assetsCount: assets.length,
       totalValue,
