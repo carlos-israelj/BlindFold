@@ -1,0 +1,3 @@
+# This file triggers a Render redeploy
+# Last updated: 2026-02-16 15:57:00
+# Reason: Force redeploy to include register_group MCP tool
