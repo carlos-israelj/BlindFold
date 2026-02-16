@@ -195,8 +195,11 @@ async def _finalize_upload_handler(request: Request):
 
             print(f"✅ Uploaded to IPFS: {ipfs_hash}")
 
+            # Return in format expected by NOVA SDK
+            # SDK expects: cid (IPFS hash), trans_id, file_hash
             return JSONResponse(content={
-                "ipfs_hash": ipfs_hash,
+                "cid": ipfs_hash,  # SDK expects 'cid', not 'ipfs_hash'
+                "ipfs_hash": ipfs_hash,  # Keep for backwards compatibility
                 "file_hash": file_hash
             })
 
