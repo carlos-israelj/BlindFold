@@ -66,7 +66,17 @@ export async function POST(request: NextRequest) {
       `portfolio-${Date.now()}.json`
     );
 
-    console.log(`Portfolio uploaded successfully. CID: ${result.cid}`);
+    console.log(`Portfolio uploaded successfully. Full result:`, result);
+
+    // The SDK might return ipfs_hash instead of cid
+    const ipfsCid = result.cid || result.ipfs_hash || result.ipfsHash;
+
+    if (!ipfsCid) {
+      console.error('No CID found in upload result:', result);
+      throw new Error('Upload succeeded but no IPFS CID was returned');
+    }
+
+    console.log(`IPFS CID: ${ipfsCid}`);
 
     // Update or create vault record with new CID
     const user = await prisma.user.findUnique({
@@ -77,13 +87,13 @@ export async function POST(request: NextRequest) {
       await prisma.vault.upsert({
         where: { groupId },
         update: {
-          novaCid: result.cid,
+          novaCid: ipfsCid,
           updatedAt: new Date(),
         },
         create: {
           userId: user.id,
           groupId,
-          novaCid: result.cid,
+          novaCid: ipfsCid,
         },
       });
 
@@ -91,12 +101,12 @@ export async function POST(request: NextRequest) {
       await prisma.vaultSnapshot.create({
         data: {
           vaultId: groupId,
-          novaCid: result.cid,
+          novaCid: ipfsCid,
           portfolioHash: Buffer.from(JSON.stringify(portfolioData)).toString('base64'),
         },
       });
 
-      console.log(`✅ Vault updated in database with CID: ${result.cid}`);
+      console.log(`✅ Vault updated in database with CID: ${ipfsCid}`);
     }
 
     // Calculate total value for response
@@ -104,8 +114,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      cid: result.cid,
-      transactionId: result.trans_id,
+      cid: ipfsCid,
+      transactionId: result.trans_id || result.file_hash,
       groupId,
       assetsCount: assets.length,
       totalValue,
