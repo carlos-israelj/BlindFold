@@ -91,7 +91,8 @@ export async function POST(request: NextRequest) {
     });
 
     if (user) {
-      await prisma.vault.upsert({
+      // Upsert vault and get the internal vault ID
+      const vault = await prisma.vault.upsert({
         where: { groupId },
         update: {
           novaCid: ipfsCid,
@@ -104,16 +105,17 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create snapshot record
+      // Create snapshot record using the internal vault ID
       await prisma.vaultSnapshot.create({
         data: {
-          vaultId: groupId,
+          vaultId: vault.id,  // Use internal vault ID, not groupId
           novaCid: ipfsCid,
           portfolioHash: Buffer.from(JSON.stringify(portfolioData)).toString('base64'),
         },
       });
 
       console.log(`✅ Vault updated in database with CID: ${ipfsCid}`);
+      console.log(`✅ Snapshot created for vault: ${vault.id}`);
     }
 
     // Calculate total value for response
