@@ -25,6 +25,7 @@ services:
       - NOVA_API_KEY=${NOVA_API_KEY}
       - NOVA_GROUP_ID=${NOVA_GROUP_ID}
       - PORTFOLIO_CID=${PORTFOLIO_CID:-}
+      - MCP_SERVER_URL=${MCP_SERVER_URL:-https://nova-mcp-server.onrender.com/mcp}
 
       # Monitoring Configuration
       - SCHEDULE_CRON=${SCHEDULE_CRON:-0 9 * * *}

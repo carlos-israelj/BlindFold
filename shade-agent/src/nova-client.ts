@@ -29,10 +29,20 @@ export async function getNovaClient(accountId: string): Promise<NovaSdk> {
   // Use NOVA account ID (e.g., ecuador10.nova-sdk.near) instead of wallet address
   const novaAccountId = process.env.NOVA_ACCOUNT_ID || accountId;
 
-  // Initialize NOVA SDK with API key
+  // Get custom MCP server URL (defaults to official if not set)
+  const mcpUrl = process.env.MCP_SERVER_URL || 'https://nova-mcp-server.onrender.com/mcp';
+
+  console.log(`🔧 Initializing NOVA SDK:`);
+  console.log(`   Account: ${novaAccountId}`);
+  console.log(`   Network: ${network}`);
+  console.log(`   RPC: ${rpcUrl}`);
+  console.log(`   MCP Server: ${mcpUrl}`);
+
+  // Initialize NOVA SDK with API key and custom MCP server
   novaClient = new NovaSdk(novaAccountId, {
     rpcUrl,
     apiKey,
+    mcpUrl,
   });
 
   return novaClient;
