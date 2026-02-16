@@ -137,9 +137,8 @@ async def prepare_upload(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/mcp/tools/finalize_upload")
-async def finalize_upload(request: Request):
-    """Finalize upload by storing encrypted data to IPFS via Pinata"""
+async def _finalize_upload_handler(request: Request):
+    """Shared handler for finalize upload logic"""
     try:
         data = await request.json()
         account_id = request.headers.get("X-Account-Id", "")
@@ -192,6 +191,18 @@ async def finalize_upload(request: Request):
     except Exception as e:
         print(f"❌ finalize_upload error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/mcp/tools/finalize_upload")
+async def finalize_upload(request: Request):
+    """Finalize upload by storing encrypted data to IPFS via Pinata"""
+    return await _finalize_upload_handler(request)
+
+
+@app.post("/mcp/api/finalize-upload")
+async def finalize_upload_api_path(request: Request):
+    """Alias endpoint for NOVA SDK compatibility - SDK uses /api/ path"""
+    return await _finalize_upload_handler(request)
 
 
 @app.post("/mcp/tools/prepare_retrieve")
