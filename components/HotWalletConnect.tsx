@@ -179,10 +179,13 @@ const HotWalletConnect = observer(() => {
             // Continue anyway - vault is created
           }
         } else {
-          // Check if it's a NOVA API key missing error
+          // Check if it's a NOVA API key missing error or MCP error
           if (vaultData.error?.includes('save your NOVA API key first') ||
               vaultData.error?.includes('Account not found') ||
               vaultData.error?.includes('NOVA vault service is not available') ||
+              vaultData.error?.includes('NOVA credentials not found') ||
+              vaultData.error?.includes('MCP tool') ||
+              vaultData.error?.includes('404') ||
               vaultData.error?.includes('401')) {
             console.info('ℹ️ NOVA Vault unavailable: API key not configured');
             console.log('🔔 Opening NOVA setup modal...');
@@ -194,11 +197,14 @@ const HotWalletConnect = observer(() => {
           // Continue without vault - app still works
         }
       } catch (vaultError: any) {
-        // Check if it's a NOVA API key missing error
+        // Check if it's a NOVA API key missing error or MCP error
         console.log('🔍 Vault error caught:', vaultError.message);
         if (vaultError.message?.includes('save your NOVA API key first') ||
             vaultError.message?.includes('Account not found') ||
             vaultError.message?.includes('NOVA vault service is not available') ||
+            vaultError.message?.includes('NOVA credentials not found') ||
+            vaultError.message?.includes('MCP tool') ||
+            vaultError.message?.includes('404') ||
             vaultError.message?.includes('401')) {
           console.info('ℹ️ NOVA Vault unavailable: API key not configured');
           console.log('🔔 Opening NOVA setup modal...');
