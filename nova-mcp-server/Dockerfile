@@ -7,10 +7,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy server code
-COPY server.py .
+COPY server_rest.py .
 
 # Expose MCP server port
 EXPOSE 8000
 
-# Run the server
-CMD ["python", "server.py"]
+# Run the REST server (compatible with NOVA SDK)
+CMD ["python", "server_rest.py"]
