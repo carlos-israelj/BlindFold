@@ -79,6 +79,37 @@ async def _get_shade_key(account_id: str, group_id: str) -> str:
 
 
 @mcp.tool()
+async def register_group(account_id: str, group_id: str) -> dict:
+    """
+    Register a new group for encrypted file sharing
+
+    This is a no-op in the MCP server since group registration happens
+    on the NEAR blockchain via the SDK. The MCP server just needs to
+    acknowledge the group exists for future encrypt/decrypt operations.
+
+    Args:
+        account_id: NEAR account ID
+        group_id: Group ID to register
+
+    Returns:
+        dict with success status
+    """
+    print(f"\n📝 register_group called:")
+    print(f"   Account: {account_id}")
+    print(f"   Group: {group_id}")
+
+    # The actual group registration happens on NEAR blockchain via SDK
+    # This MCP tool just acknowledges the group for encryption operations
+    print(f"✅ Group registered (blockchain operation handled by SDK)")
+
+    return {
+        "success": True,
+        "group_id": group_id,
+        "message": "Group registered successfully"
+    }
+
+
+@mcp.tool()
 async def prepare_upload(account_id: str, group_id: str, filename: str = "") -> dict:
     """
     Prepare for file upload by generating encryption key
