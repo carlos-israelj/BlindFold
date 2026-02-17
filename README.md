@@ -1,448 +1,467 @@
-# BlindFold - Privacy-Verified Crypto Financial Advisor
+# BlindFold
 
-> The first AI financial advisor where your data is cryptographically proven to remain private. Built for NEARCON 2026 Innovation Sandbox.
-
-🏆 **Target Prizes:** $14,000 total
-💰 Private Web ($3,500) + Only on NEAR ($4,500) + NOVA Bounty ($3,000) + HOT Protocol ($3,000)
+> **The only AI financial advisor where your privacy is mathematically guaranteed.**
+> Every response cryptographically signed. Every vault key managed in a separate TEE. Zero trust required.
 
 ---
 
-## 🎯 What is BlindFold?
+## Table of Contents
 
-BlindFold is a privacy-first crypto portfolio advisor powered by NEAR AI Cloud's TEE-based inference. Users connect their wallet, their portfolio data gets encrypted into a personal NOVA vault, and an AI advisor answers questions like "How's my portfolio?" or "What's my risk exposure?" — with **every response cryptographically signed** proving no one saw the data.
-
-### Why This Can't Exist on Standard AI
-
-On ChatGPT/Claude/Gemini, your wallet holdings and financial questions are visible to the AI provider. BlindFold uses **NEAR AI Cloud's TEE-based inference** where:
-
-- **TLS terminates inside the Trusted Execution Environment** (not at a load balancer)
-- Prompts remain encrypted from your machine all the way into the secure enclave
-- **NOVA's encrypted vault** with keys managed in separate TEEs (Shade Agents)
-- **No single party** can see your financial data — not the AI provider, not us, not anyone
-
-### Three-Layer Architecture
-
-Unlike typical hackathon projects, BlindFold has **three distinct backend layers**:
-
-1. **Smart Contract (Rust)** — Yield/resume AI advisor + on-chain verification registry
-2. **TEE Relayer (TypeScript)** — Bridges contract and NEAR AI Cloud TEE
-3. **Portfolio Analytics (TypeScript)** — HHI concentration, correlation, rebalancing
+- [Overview](#overview)
+- [Core Features](#core-features)
+- [How It Works](#how-it-works)
+- [Architecture](#architecture)
+- [Live Services](#live-services)
+- [Quick Start](#quick-start)
+- [Smart Contract](#smart-contract)
+- [Tech Stack](#tech-stack)
+- [Security Model](#security-model)
+- [Only on NEAR](#only-on-near)
+- [Prize Track Alignment](#prize-track-alignment)
+- [Project Structure](#project-structure)
+- [FAQ](#faq)
+- [License](#license)
 
 ---
 
-## 🚀 Live Demo
+## Overview
 
-- **Frontend:** Deploy to Vercel (see deployment guide)
-- **Smart Contract:** `blindfold.testnet` on NEAR testnet
-- **Relayer:** Railway.app background worker
-- **Verification:** View on-chain proofs at https://testnet.nearblocks.io
+BlindFold is a privacy-first crypto portfolio advisor that proves — not just claims — that your financial data is never seen by anyone. Users connect their NEAR wallet, portfolio data is encrypted into a personal NOVA vault, and an AI advisor answers questions like *"What's my risk exposure?"* or *"Should I rebalance?"* with every response **cryptographically signed by the TEE itself**.
 
----
+The problem with ChatGPT, Claude, and every other AI advisor: your wallet holdings and financial questions are visible to the AI provider, the cloud operator, and anyone who breaches their infrastructure. BlindFold uses **NEAR AI Cloud's TEE-based inference** to eliminate this trust assumption entirely.
 
-## ✨ Features
-
-### 🔒 Privacy-Verified AI Inference
-- **NEAR AI Cloud TEE:** Intel TDX + NVIDIA H200 GPUs
-- **Cryptographic Signatures:** Every response ECDSA-signed
-- **On-Chain Verification:** Permanently stored on NEAR blockchain
-- **NearBlocks Integration:** Judges can verify freely
-
-### 📊 Portfolio Analytics
-- **HHI (Herfindahl-Hirschman Index):** Real concentration risk calculation
-- **Risk Scoring:** 0-100 score with color-coded levels
-- **Diversification Metrics:** Effective number of assets
-- **Smart Recommendations:** AI-powered rebalancing suggestions
-
-### 💾 Encrypted Vault (NOVA)
-- **Client-Side Encryption:** AES-256-GCM before upload
-- **Shade TEE Key Management:** Keys never touch blockchain
-- **IPFS Storage:** Decentralized encrypted data
-- **Data Controls:** Inspect, export, delete, revoke access
-
-### 🔄 Multi-Chain Swaps (HOT Protocol)
-- **30+ Chains:** NEAR, EVM, Solana, TON, Bitcoin, Stellar, Cosmos
-- **NEAR Intents:** Non-custodial, gasless swaps
-- **AI-Suggested Actions:** "Your portfolio is 82% NEAR. Rebalance?" → Click to swap
-
-### 🔐 Better Auth with NEP-413
-- **Wallet-Based Sessions:** No passwords, only NEAR signatures
-- **7-Day Persistent Sessions:** Survives page reloads
-- **Rate Limiting:** 100 requests/hour per account
-- **PostgreSQL Sessions:** Prisma + Vercel Postgres
+**Built for:** NEAR Hackathon 2025 — Privacy + NOVA + Only on NEAR tracks.
 
 ---
 
-## 🏗️ Architecture
+## Core Features
+
+### Privacy-Verified AI Inference
+- AI inference runs inside Intel TDX + NVIDIA H200 TEEs on NEAR AI Cloud
+- TLS terminates inside the enclave — prompts are never plaintext outside the secure boundary
+- Every response is ECDSA-signed by the TEE's private key
+- SHA-256 hashes of the request and response are stored permanently on-chain
+- Anyone can verify the signature via Etherscan or NearBlocks — no trust required
+
+### Encrypted Portfolio Vault (NOVA)
+- Portfolio data encrypted client-side with AES-256-GCM before upload
+- Encryption keys managed in **Shade TEE agents** on Phala Cloud — never on-chain, never with us
+- Vault stored on IPFS through NOVA's decentralized storage layer
+- Full data controls: inspect, export, delete, revoke group access
+
+### Shade Agent Portfolio Alerts
+- A Shade Agent running on Phala Cloud monitors portfolio risk indicators
+- Sends proactive risk alerts: concentration spikes, staking rewards, rebalancing signals
+- Agent logic runs in a separate TEE, so even the alert trigger data stays private
+
+### On-Chain Verification Registry
+- Smart contract on NEAR mainnet (`ecuador5.near`) stores every verification record
+- Uses the **Yield/Resume pattern** (`env::promise_yield_create`) for async TEE processing
+- Public view functions let judges and users audit every interaction on NearBlocks
+
+### Portfolio Analytics
+- Herfindahl-Hirschman Index (HHI) for concentration risk
+- Risk score 0–100 with color-coded levels (Low / Medium / High)
+- Effective number of assets, top holding %, diversification metrics
+- AI-powered rebalancing recommendations
+
+---
+
+## How It Works
+
+### Standard Mode (Direct TEE Chat)
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                  USER'S BROWSER (Vercel)                 │
-│  Next.js 14 + React + Tailwind + TypeScript            │
-│  - Portfolio Analytics UI                               │
-│  - Risk Score Card (HHI visualization)                  │
-│  - On-Chain Verification Display                        │
-│  - Multi-Chain Swap Modal                               │
-└─────────────────────────────────────────────────────────┘
-                            │
-                            │ HTTPS
-                            ▼
-┌─────────────────────────────────────────────────────────┐
-│              TEE RELAYER (Railway/Render)                │
-│  Background Worker 24/7                                 │
-│  - Polls smart contract every 5s                        │
-│  - Forwards to NEAR AI Cloud TEE                        │
-│  - ECDSA signature verification                         │
-│  - Stores verifications on-chain                        │
-└─────────────────────────────────────────────────────────┘
-                            │
-                            │ RPC + TEE API
-                            ▼
-┌─────────────────────────────────────────────────────────┐
-│              NEAR BLOCKCHAIN + AI CLOUD                  │
-│  Smart Contract: blindfold.testnet                      │
-│  - Yield/resume pattern (env::promise_yield_create)    │
-│  - On-chain verification registry                       │
-│  - Public view functions for judges                     │
-│                                                         │
-│  NEAR AI Cloud: Intel TDX + NVIDIA H200 TEE            │
-│  - Private LLM inference (DeepSeek V3.1)               │
-│  - ECDSA signature generation                          │
-│  - Model attestation reports                           │
-└─────────────────────────────────────────────────────────┘
+User question
+     │
+     ▼
+Next.js API route (/api/chat)
+     │  builds request + hashes it
+     ▼
+NEAR AI Cloud TEE  ←── TLS terminates here (inside enclave)
+     │  generates response + ECDSA signature
+     ▼
+API route verifies signature locally
+     │  stores verification in NOVA vault
+     ▼
+Frontend shows response + "TEE VERIFIED" badge
+```
+
+### On-Chain Mode (Yield/Resume)
+
+```
+User question
+     │
+     ▼
+ask_advisor() → NEAR contract stores request, YIELDS
+     │  returns requestId immediately
+     ▼
+Frontend polls GET /api/advisor?requestId=N every 3s
+     │
+     │  Meanwhile, in background:
+     ▼
+TEE Relayer polls get_pending_requests() every 5s
+     │  forwards to NEAR AI Cloud TEE
+     │  verifies ECDSA signature
+     ▼
+store_verification() → contract RESUMES, marks Completed
+     │  response_text + signature stored on-chain permanently
+     ▼
+Frontend poll detects Completed → displays response + TEE VERIFIED badge
+```
+
+The on-chain mode provides maximum auditability: the entire verification record lives on the NEAR blockchain at `ecuador5.near` and can be inspected by anyone.
+
+---
+
+## Architecture
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    USER'S BROWSER                               │
+│  Next.js 14 + TypeScript                                       │
+│  ┌─────────────────┐  ┌──────────────────┐  ┌──────────────┐  │
+│  │  Portfolio UI   │  │  Chat Interface  │  │  Vault Panel │  │
+│  │  HHI Analytics  │  │  On-Chain Mode   │  │  NOVA Vault  │  │
+│  │  Risk Score     │  │  TEE VERIFIED    │  │  AES-256-GCM │  │
+│  └─────────────────┘  └──────────────────┘  └──────────────┘  │
+└──────────────────────────────┬─────────────────────────────────┘
+                               │ HTTPS
+                               ▼
+┌────────────────────────────────────────────────────────────────┐
+│                 NEXT.JS API ROUTES (Vercel)                     │
+│  /api/chat     → direct TEE proxy + signature verify           │
+│  /api/advisor  → on-chain submit + poll results                │
+│  /api/vault    → NOVA encrypt/upload/retrieve                  │
+│  /api/wallet   → FastNEAR portfolio fetch                      │
+│  /api/agents   → Shade Agent alerts                            │
+└──────────┬────────────────────────┬────────────────────────────┘
+           │                        │
+           │ NEAR AI Cloud API      │ NEAR RPC (mainnet)
+           ▼                        ▼
+┌──────────────────┐    ┌───────────────────────────┐
+│  NEAR AI Cloud   │    │  NEAR Mainnet              │
+│  Intel TDX TEE   │    │  Contract: ecuador5.near   │
+│  NVIDIA H200     │    │  - ask_advisor()           │
+│  DeepSeek V3.1   │    │  - store_verification()    │
+│  ECDSA signing   │    │  - get_pending_requests()  │
+└──────────────────┘    └───────────┬───────────────┘
+                                    │ polls every 5s
+                                    ▼
+┌────────────────────────────────────────────────────────────────┐
+│              TEE RELAYER  (Render — 24/7 worker)               │
+│  - Polls NEAR contract for pending requests                    │
+│  - Forwards to NEAR AI Cloud TEE                               │
+│  - Verifies ECDSA signature (ethers.verifyMessage)             │
+│  - Calls store_verification() to write proof on-chain          │
+└────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────┐
+│              NOVA MCP SERVER  (Render — always-on)             │
+│  - MCP protocol interface for vault operations                 │
+│  - AES-256-GCM encryption before IPFS upload                  │
+│  - Group key management via Shade TEE                          │
+└────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────┐
+│              SHADE AGENT  (Phala Cloud TEE)                    │
+│  - Portfolio risk monitoring agent                             │
+│  - Proactive alerts for concentration / rebalancing            │
+│  - Encryption key custodian for NOVA vaults                    │
+│  - Runs in separate TEE — isolated from relayer and app        │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 📦 Tech Stack
+## Live Services
 
-### Frontend (Vercel)
-- **Next.js 14** (App Router)
-- **TypeScript** + **React 18**
-- **Tailwind CSS**
-- **React Query** (@tanstack/react-query)
-- **NEAR Wallet Selector**
-- **Vercel Postgres** (Better Auth sessions)
+| Service | Location | Status |
+|---------|----------|--------|
+| Smart Contract | `ecuador5.near` (NEAR mainnet) | Live |
+| TEE Relayer | Render (24/7 background worker) | Live |
+| NOVA MCP Server | Render | Live |
+| Shade Agent | Phala Cloud TEE | Live |
+| Frontend | Vercel | Live |
 
-### Backend Services
-- **Smart Contract:** Rust (`near-sdk` v5.5)
-- **TEE Relayer:** TypeScript (Railway.app worker)
-- **Auth:** Better Auth + NEP-413
-- **Portfolio Data:** FastNEAR API (free, no key)
-- **AI Inference:** NEAR AI Cloud (OpenAI SDK compatible)
-- **Encrypted Storage:** NOVA SDK (Shade TEEs)
-
-### Multi-Chain (Phase 3)
-- **HOT Protocol:** Multi-chain wallets + swaps
-- **MobX:** State management for HOT KIT
-- **NEAR Intents:** Cross-chain transactions
+**Verify on-chain:** [nearblocks.io/address/ecuador5.near](https://nearblocks.io/address/ecuador5.near)
 
 ---
 
-## 🚀 Quick Start (Local Development)
+## Quick Start
 
 ### Prerequisites
+
 ```bash
 node >= 20
 npm >= 10
-rust >= 1.75 (for smart contract)
+rust >= 1.75   # only for smart contract development
 near-cli
-docker (optional, for relayer)
 ```
 
 ### 1. Clone & Install
+
 ```bash
-git clone <your-repo>
-cd Near
+git clone https://github.com/carlos-israelj/BlindFold.git
+cd BlindFold
 npm install
 ```
 
 ### 2. Configure Environment
+
 ```bash
 cp .env.example .env.local
+```
 
-# Edit .env.local with your keys:
-# - NEAR_AI_API_KEY (from cloud.near.ai)
-# - NOVA_API_KEY (from nova-sdk.com)
-# - DATABASE_URL (local postgres or Vercel Postgres)
-# - AUTH_SECRET (generate: openssl rand -base64 32)
+Required variables:
+
+```env
+# NEAR AI Cloud (cloud.near.ai)
+NEAR_AI_API_KEY=your_key_here
+
+# NOVA vault storage
+NOVA_API_KEY=your_nova_key
+
+# Database (Vercel Postgres or local)
+DATABASE_URL=postgresql://...
+
+# Auth secret
+AUTH_SECRET=run: openssl rand -base64 32
+
+# NEAR contract
+NEXT_PUBLIC_CONTRACT_ID=ecuador5.near
+NEAR_NETWORK=mainnet
 ```
 
 ### 3. Setup Database
+
 ```bash
 npx prisma generate
 npx prisma migrate dev
 ```
 
 ### 4. Run Development Server
+
 ```bash
 npm run dev
 # Open http://localhost:3000
 ```
 
-### 5. Deploy Smart Contract (Optional)
-```bash
-cd contract
-./build.sh
-near deploy --accountId your-account.testnet --wasmFile target/wasm32-unknown-unknown/release/blindfold_contract.wasm
-```
+### 5. Run TEE Relayer (Optional — for on-chain mode)
 
-### 6. Run TEE Relayer (Optional)
 ```bash
 cd relayer
 cp .env.example .env
-# Edit .env with your credentials
+# Set RELAYER_ACCOUNT_ID, RELAYER_PRIVATE_KEY, NEAR_AI_API_KEY, CONTRACT_ID
 npm install
 npm start
 ```
 
 ---
 
-## 🌐 Production Deployment
+## Smart Contract
 
-### Frontend (Vercel) - 2 minutes
-1. Push to GitHub
-2. Import in Vercel (https://vercel.com/new)
-3. Add environment variables
-4. Deploy
+**Deployed at:** `ecuador5.near` (NEAR mainnet)
 
-### Relayer (Railway.app) - 1 minute
-1. New Project → Deploy from GitHub
-2. Root Directory: `relayer`
-3. Add environment variables
-4. Auto-deploy
+### Key Methods
 
-### Smart Contract (NEAR Testnet)
-```bash
-near create-account blindfold.testnet --useFaucet
-cd contract && ./build.sh
-near deploy --accountId blindfold.testnet --wasmFile target/wasm32-unknown-unknown/release/blindfold_contract.wasm
-near call blindfold.testnet new '{"owner":"blindfold.testnet"}' --accountId blindfold.testnet
-```
+| Method | Type | Description |
+|--------|------|-------------|
+| `ask_advisor(question, portfolio_data)` | Call | Submit question, deposit 0.01 NEAR, returns `request_id` |
+| `store_verification(request_id, ...)` | Call | Relayer stores signed response on-chain |
+| `mark_processing(request_id)` | Call | Relayer marks request as in-progress |
+| `get_pending_requests()` | View | Returns all unprocessed requests |
+| `get_request(id)` | View | Fetch specific request + status |
+| `get_user_verifications(account_id)` | View | All verifications for an account |
+| `get_stats()` | View | Contract-wide stats |
 
-**📖 Full Guide:** See `PRODUCTION_DEPLOY.md` for detailed instructions
-**⚡ Quick Guide:** See `DEPLOY_QUICK.md` for 5-minute deployment
+### Yield/Resume Pattern
 
----
+The contract uses `env::promise_yield_create` — a NEAR-specific primitive that:
+1. Suspends contract execution and emits a "yield" event
+2. Allows an external actor (TEE relayer) to resume with a result
+3. Stores the final verification record atomically
 
-## 🧪 Testing
+This pattern makes the AI response path fully auditable on-chain without blocking the user.
 
-### Test Smart Contract
+### Build & Deploy
+
 ```bash
 cd contract
-cargo test
+./build.sh
+near deploy \
+  --accountId your-account.near \
+  --wasmFile target/wasm32-unknown-unknown/release/blindfold_contract.wasm
+near call your-account.near new '{"owner":"your-account.near"}' \
+  --accountId your-account.near
 ```
-
-### Test Portfolio Analytics
-```bash
-npm run test
-```
-
-### E2E Flow Test
-1. Connect wallet
-2. Load portfolio (auto-fetched from FastNEAR)
-3. Ask AI: "What's my risk exposure?"
-4. Verify on-chain: Click "Verified in TEE" badge
-5. Check NearBlocks: View transaction
 
 ---
 
-## 📁 Project Structure
+## Tech Stack
+
+### Frontend
+- **Next.js 14** (App Router) — SSR + API routes
+- **TypeScript** + **React 18**
+- **NEAR Wallet Selector** — MyNEARWallet, Meteor
+- **Better Auth** + **NEP-413** — wallet-based sessions, no passwords
+- **Prisma** + **Vercel Postgres** — session store
+
+### Backend Services
+- **Smart Contract:** Rust (`near-sdk` v5.5), deployed to NEAR mainnet
+- **TEE Relayer:** TypeScript + `near-kit`, deployed on Render
+- **NOVA MCP Server:** TypeScript, deployed on Render
+- **Shade Agent:** Phala Cloud TEE — portfolio alerts + key custody
+
+### NEAR Ecosystem
+- **NEAR AI Cloud** — OpenAI-compatible API backed by Intel TDX + NVIDIA H200 TEE
+- **NOVA SDK** — Encrypted vault on IPFS with Shade Agent key management
+- **FastNEAR API** — Portfolio data (FTs, NFTs, staking) — free, no key needed
+- **Shade Agents** — TEE agent framework on Phala Cloud
+
+### Cryptography
+- **AES-256-GCM** — portfolio encryption at rest
+- **ECDSA** — TEE response signing (secp256k1)
+- **SHA-256** — request/response integrity hashes
+- **ethers.verifyMessage** — signature recovery and verification
+
+---
+
+## Security Model
+
+### Threat Model
+
+| Threat | Mitigation |
+|--------|-----------|
+| AI provider reads prompts | TLS terminates inside TEE — encrypted end-to-end to enclave |
+| Cloud operator reads data | Intel TDX memory isolation — hypervisor cannot access enclave memory |
+| Storage provider decrypts vault | AES-256-GCM client-side encryption — never plaintext outside browser |
+| Developer accesses user data | No plaintext access at any layer; keys managed in separate Shade TEE |
+| Response tampered in transit | ECDSA signature verified by relayer before storing on-chain |
+| Replay attacks | Unique request IDs + on-chain deduplication |
+| Fake verification badge | Badge requires `verified: true` which only comes from successful `ethers.verifyMessage` |
+
+### Verification Flow
+
+Every AI response carries:
+1. **Request hash** — SHA-256 of the exact prompt sent to the TEE
+2. **Response hash** — SHA-256 of the exact text returned
+3. **ECDSA signature** — signs `"reqHash:resHash"` with TEE's private key
+4. **Signing address** — Ethereum-format address of TEE's signing key
+5. **On-chain record** — stored at `ecuador5.near` (publicly auditable)
+
+Anyone can verify independently:
+- [etherscan.io/verifySig](https://etherscan.io/verifySig) — recover signer from signature
+- [nearblocks.io/address/ecuador5.near](https://nearblocks.io/address/ecuador5.near) — view on-chain records
+- [cloud-api.near.ai/v1/attestation/report](https://cloud-api.near.ai/v1/attestation/report) — TEE attestation
+
+---
+
+## Only on NEAR
+
+BlindFold requires NEAR-specific infrastructure and cannot be replicated on any other chain:
+
+| NEAR Feature | How We Use It |
+|-------------|---------------|
+| **NEAR AI Cloud** | Intel TDX + NVIDIA H200 TEE for private AI inference — no equivalent elsewhere |
+| **NOVA Vault** | Encrypted IPFS storage with Shade Agent key management — NEAR-native |
+| **Shade Agents** | TEE agent framework on Phala Cloud for key custody + alerts |
+| **Yield/Resume (`promise_yield_create`)** | On-chain async AI pattern — NEAR-specific contract primitive |
+| **NEP-413** | Wallet-based auth signatures — NEAR standard |
+| **Named Accounts** | `ecuador5.near` instead of `0x7a3b...` — readable, human-friendly |
+| **FastNEAR API** | Complete portfolio data (FTs, NFTs, staking) in one call |
+
+---
+
+## Prize Track Alignment
+
+### Private Web / Privacy Track
+- Dual TEE architecture: NEAR AI Cloud (inference) + Shade Agent (key custody)
+- Mathematically verifiable privacy — ECDSA signatures anyone can check
+- No trust assumption at any layer: AI, storage, relayer, or developer
+
+### NOVA Track
+- NOVA MCP server deployed and live on Render
+- AES-256-GCM encryption before every upload
+- Shade TEE manages group keys — users can revoke access at any time
+- Portfolio snapshots and chat history stored as encrypted CIDs
+
+### Only on NEAR Track
+- 7 NEAR-specific features in production (see table above)
+- Smart contract live on NEAR mainnet at `ecuador5.near`
+- Four deployed services: contract + relayer + NOVA MCP + Shade Agent
+- Uses `promise_yield_create` — a contract pattern only possible on NEAR
+
+---
+
+## Project Structure
 
 ```
 blindfold/
-├── app/                    # Next.js App Router
-│   ├── api/               # API routes
-│   │   ├── auth/         # Better Auth endpoints
-│   │   ├── chat/         # AI advisor proxy
-│   │   ├── vault/        # NOVA operations
-│   │   ├── wallet/       # Portfolio fetching
-│   │   └── swap/         # HOT Protocol swaps
-│   ├── chat/             # Chat interface page
-│   ├── vault/            # Vault controls page
-│   └── page.tsx          # Landing page
-├── components/            # React components
-│   ├── RiskScoreCard.tsx     # Portfolio analytics UI
-│   ├── OnChainVerification.tsx  # Verification display
-│   ├── SwapModal.tsx         # Multi-chain swap UI
-│   ├── WalletConnector.tsx   # NEAR wallet
-│   └── ...
-├── lib/                   # Core libraries
-│   ├── auth.ts           # Better Auth config
-│   ├── near-auth.ts      # NEP-413 verification
-│   ├── fastnear.ts       # Portfolio API
-│   ├── portfolio-analytics.ts  # HHI, risk scoring
-│   ├── hot-kit.ts        # Multi-chain integration
-│   └── nova.ts           # Encrypted vault
-├── contexts/              # React contexts
+├── app/
+│   ├── api/
+│   │   ├── advisor/       # On-chain Yield/Resume endpoint
+│   │   ├── agents/        # Shade Agent alerts
+│   │   ├── audit/         # Verification audit log
+│   │   ├── auth/          # Better Auth (NEP-413)
+│   │   ├── chat/          # Direct TEE proxy
+│   │   ├── nova/          # NOVA vault operations
+│   │   ├── vault/         # Vault management
+│   │   └── wallet/        # FastNEAR portfolio fetch
+│   ├── chat/              # Chat interface page
+│   ├── vault/             # Vault controls page
+│   └── page.tsx           # Landing page
+├── components/
+│   ├── ChatInterface.tsx         # Main chat UI + polling
+│   ├── OnChainVerification.tsx   # Verification data display
+│   ├── RiskScoreCard.tsx         # HHI analytics UI
+│   └── WalletConnector.tsx       # NEAR wallet selector
+├── lib/
+│   ├── blindfold-contract.ts     # NEAR contract client
+│   ├── fastnear.ts               # Portfolio data API
+│   ├── nova.ts                   # NOVA vault client
+│   ├── portfolio-analytics.ts    # HHI, risk scoring
+│   └── verify-signature.ts       # ECDSA verification
+├── contexts/
 │   ├── WalletContext.tsx
 │   └── VaultContext.tsx
-├── contract/              # Rust smart contract
-│   ├── src/lib.rs        # Contract code
+├── contract/
+│   ├── src/lib.rs                # Rust smart contract
 │   ├── Cargo.toml
 │   └── build.sh
-├── relayer/               # TEE Relayer service
-│   ├── src/index.ts      # Polling loop
-│   ├── Dockerfile        # Production container
+├── relayer/
+│   ├── src/index.ts              # TEE relayer polling loop
+│   ├── Dockerfile
 │   └── package.json
-├── prisma/
-│   └── schema.prisma     # Database schema
-├── PRODUCTION_DEPLOY.md  # Detailed deployment guide
-├── DEPLOY_QUICK.md       # Quick deployment (5 min)
-└── IMPLEMENTATION_COMPLETE.md  # Implementation summary
+├── types/index.ts                # Shared TypeScript types
+└── prisma/schema.prisma          # Database schema
 ```
 
 ---
 
-## 🎯 "Only on NEAR" Qualification
+## FAQ
 
-This product **requires** NEAR-specific infrastructure and cannot exist on any other chain:
+**Q: Can the relayer read my portfolio data?**
+A: No. The relayer only sees request IDs and hashes. Portfolio data travels encrypted to the TEE — the relayer forwards it but cannot decrypt it.
 
-1. ✅ **NEAR AI Cloud** — TEE-based private inference (Intel TDX + NVIDIA H200)
-2. ✅ **NOVA on NEAR** — Encrypted vault with Shade Agent key management
-3. ✅ **Named Accounts** — `alice.near` instead of `0x7a3b...`
-4. ✅ **Yield/Resume Pattern** — `env::promise_yield_create` for on-chain async
-5. ✅ **FastNEAR API** — Complete portfolio data (FTs, NFTs, staking)
-6. ✅ **Dual TEE Attestation** — NEAR AI + NOVA Shade = end-to-end verification
-7. ✅ **HOT Protocol** — NEAR Intents for multi-chain swaps
+**Q: What happens if I lose my vault key?**
+A: Vault keys are managed by the Shade TEE agent. The agent uses your NEAR account signature to authenticate access — as long as you control your wallet, you control your vault.
 
----
+**Q: How do I know the TEE signature is real?**
+A: The signing address is published in NEAR AI Cloud's attestation report at `cloud-api.near.ai/v1/attestation/report`. Cross-reference the `signing_address` in any response against that report — if it matches, the signature came from inside the TEE.
 
-## 🔐 Security & Privacy
+**Q: Why store verifications on-chain instead of just showing them in the UI?**
+A: On-chain storage means the verification record exists independently of our servers. Even if BlindFold shuts down, every verification at `ecuador5.near` remains auditable forever.
 
-### What's Protected
-- **Portfolio Data:** Encrypted (AES-256-GCM) in NOVA vault
-- **AI Prompts:** TLS terminates inside TEE (never plaintext outside enclave)
-- **Encryption Keys:** Managed in Shade TEE (Phala Cloud), never on-chain
-- **Chat History:** Encrypted, stored in NOVA, verifiable on IPFS
-
-### Cryptographic Verification
-Every AI response includes:
-- **SHA-256 Hashes:** Request + response integrity
-- **ECDSA Signature:** Signed by TEE's private key
-- **On-Chain Storage:** Permanent verification record
-- **Public Verification:** Anyone can verify via NearBlocks or Etherscan
-
-### Attack Vectors Mitigated
-- ✅ AI provider can't read prompts (TLS-to-TEE)
-- ✅ Cloud provider can't access data (Intel TDX isolation)
-- ✅ Storage provider can't decrypt (client-side encryption)
-- ✅ Developer can't see data (no plaintext access)
-- ✅ Response tampering detected (ECDSA signatures)
-- ✅ Replay attacks prevented (nonce-based attestation)
+**Q: What's the difference between Standard mode and On-Chain mode?**
+A: Standard mode gives you a response in ~3 seconds stored in your NOVA vault. On-Chain mode takes ~15–30 seconds but stores the verification permanently on the NEAR blockchain — useful when you want a public, auditable record.
 
 ---
 
-## 📊 Demo for Judges
+## License
 
-### 1. Connect Wallet
-- Click "Connect Wallet"
-- Select MyNEARWallet or Meteor
-- Sign authentication message (NEP-413)
-
-### 2. View Portfolio Analysis
-- Auto-fetched from FastNEAR API
-- **Risk Score:** 0-100 with HHI calculation
-- **Concentration:** Low/Medium/High badge
-- **Top Holding:** Largest position %
-- **Recommendations:** AI-generated suggestions
-
-### 3. Ask AI Advisor
-- Example: "What's my risk exposure?"
-- Streams response from NEAR AI Cloud TEE
-- Click "Verified in TEE" badge to expand
-
-### 4. Verify On-Chain
-- View SHA-256 hashes (request + response)
-- See ECDSA signature from TEE
-- Click "View on NearBlocks" → See transaction
-- Click "Verify Signature on Etherscan" → External verification
-
-### 5. Multi-Chain Swap (Phase 3)
-- Click suggested "Rebalance" action
-- Swap modal opens with HOT Protocol
-- Select chains (NEAR → Ethereum, etc.)
-- Execute non-custodial swap via NEAR Intents
+MIT — see `LICENSE`.
 
 ---
 
-## 🏆 Prize Criteria Alignment
-
-| Criteria | How We Qualify |
-|----------|----------------|
-| **Impact/Usefulness** | Daily use case (portfolio check), 4K NEAR Legion users, solves real privacy problem |
-| **Technical Execution** | Dual-TEE (NEAR AI + NOVA), yield/resume contract, ECDSA verification, HHI analytics |
-| **Completeness** | Full E2E: wallet → portfolio → chat → verification → swaps, production-ready |
-| **UX** | One-click wallet, natural language, expandable verification, risk score cards |
-| **Only on NEAR** | Uses 7 NEAR-specific features that can't exist elsewhere |
-
----
-
-## 📚 Documentation
-
-- **Architecture:** `ARCHITECTURE (2).md` (complete specification)
-- **Implementation:** `IMPLEMENTATION_COMPLETE.md` (summary of all 3 phases)
-- **Production Deploy:** `PRODUCTION_DEPLOY.md` (detailed Vercel + Railway guide)
-- **Quick Deploy:** `DEPLOY_QUICK.md` (5-minute setup)
-- **Smart Contract:** `contract/README.md`
-- **TEE Relayer:** `relayer/README.md`
-
----
-
-## 🔗 External Resources
-
-- **NEAR AI Cloud:** https://cloud.near.ai
-- **NEAR AI Docs:** https://docs.near.ai/cloud
-- **NOVA SDK:** https://nova-25.gitbook.io/nova-docs/
-- **HOT Protocol:** https://hot.xyz
-- **FastNEAR API:** https://api.fastnear.com
-- **Better Auth:** https://www.better-auth.com
-- **NearBlocks:** https://nearblocks.io
-
----
-
-## 💰 Costs
-
-### Development (Free)
-- NEAR Testnet faucet
-- NEAR AI Cloud pay-as-you-go (~$0.001/query)
-- Railway $5 initial credit
-- Vercel Hobby plan (free)
-
-### Production (~$10/month)
-- Railway Pro: $5/month
-- Vercel Pro: $20/month (optional)
-- NEAR Gas: ~0.01 NEAR per request
-- NEAR AI Cloud: Pay-as-you-go
-
----
-
-## 📞 Support
-
-- **Issues:** Open GitHub issue
-- **Questions:** See `PRODUCTION_DEPLOY.md` troubleshooting section
-- **Smart Contract:** Check logs with `near view blindfold.testnet get_stats '{}'`
-- **Relayer:** View logs in Railway/Render dashboard
-
----
-
-## 📜 License
-
-MIT License - See LICENSE file
-
----
-
-## 🎉 Acknowledgments
-
-Built for **NEARCON 2026 Innovation Sandbox** - "The Private Web & Private Life" Track
-
-**Powered by:**
-- NEAR AI Cloud (TEE-based private inference)
-- NEAR Protocol (blockchain infrastructure)
-- NOVA (encrypted vault + Shade TEEs)
-- HOT Protocol (multi-chain swaps via NEAR Intents)
-
----
-
-**Ready for production deployment!** 🚀
-
-See `DEPLOY_QUICK.md` to deploy in 5 minutes.
+**Four live services. One privacy guarantee. Verified on-chain.**
