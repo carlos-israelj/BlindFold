@@ -49,13 +49,7 @@ export default function Home() {
         {/* ── Nav ─────────────────────────────────────── */}
         <nav className="flex items-center justify-between mb-24 animate-fade-in">
           <div className="flex items-center gap-3">
-            <div className="logo-mark">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L4 6v6c0 5.25 3.5 10.15 8 11.35C16.5 22.15 20 17.25 20 12V6l-8-4z"
-                  fill="rgba(7,8,15,0.8)" stroke="rgba(7,8,15,0.8)" strokeWidth="0.5" />
-                <path d="M9 12l2 2 4-4" stroke="#07080f" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
+            <img src="/logo.png" alt="BlindFold" style={{ width: 36, height: 36, objectFit: 'contain' }} />
             <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--heading)' }}>
               BlindFold
             </span>

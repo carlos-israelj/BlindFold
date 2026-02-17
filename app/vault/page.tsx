@@ -52,13 +52,7 @@ export default function VaultPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-            <div className="logo-mark" style={{ width: 30, height: 30, borderRadius: 7 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L4 6v6c0 5.25 3.5 10.15 8 11.35C16.5 22.15 20 17.25 20 12V6l-8-4z"
-                  fill="rgba(7,8,15,0.8)" stroke="rgba(7,8,15,0.8)" strokeWidth="0.5"/>
-                <path d="M9 12l2 2 4-4" stroke="#07080f" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
+            <img src="/logo.png" alt="BlindFold" style={{ width: 30, height: 30, borderRadius: 7, objectFit: 'contain' }} />
             <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--heading)' }}>
               BlindFold
             </span>
