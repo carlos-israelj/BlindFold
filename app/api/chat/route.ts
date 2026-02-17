@@ -52,18 +52,23 @@ export async function POST(request: NextRequest) {
         const signatureData = await fetchSignature(chatId, DEFAULT_MODEL, apiKey);
 
         if (signatureData) {
-          // NEAR AI Cloud signs `requestHash:responseHash`, not the raw content
+          // The API returns text = "reqHash:resHash" — verify against that directly
+          // (signatureData.text is the authoritative signed string from NEAR AI Cloud)
           const isVerified = verifySignature({
-            text: `${requestHash}:${responseHash}`,
+            text: signatureData.text,
             signature: signatureData.signature,
             signing_address: signatureData.signing_address,
             signing_algo: signatureData.signing_algo,
           });
 
+          // Parse the canonical hashes from the signed text field
+          const [canonicalReqHash, canonicalResHash] = (signatureData.text || '').split(':');
+
           verification = {
             chat_id: chatId,
-            request_hash: requestHash,
-            response_hash: responseHash,
+            request_hash: canonicalReqHash || requestHash,
+            response_hash: canonicalResHash || responseHash,
+            signed_text: signatureData.text,
             signature: signatureData.signature,
             signing_address: signatureData.signing_address,
             signing_algo: signatureData.signing_algo,

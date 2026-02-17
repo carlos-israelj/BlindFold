@@ -237,7 +237,7 @@ export function OnChainVerification({
           NEARBLOCKS
         </a>
         <a
-          href={`https://etherscan.io/verifiedSignatures?q=${verification.signature}`}
+          href="https://etherscan.io/verifySig"
           target="_blank"
           rel="noopener noreferrer"
           style={linkStyle}
@@ -256,7 +256,7 @@ export function OnChainVerification({
           VERIFY SIG
         </a>
         <a
-          href="https://tee-attestation-explorer.near.ai"
+          href="https://cloud-api.near.ai/v1/attestation/report"
           target="_blank"
           rel="noopener noreferrer"
           style={linkStyle}
@@ -272,7 +272,7 @@ export function OnChainVerification({
           <svg width="8" height="8" viewBox="0 0 24 24" fill="none">
             <path d="M12 2L4 6v6c0 5.25 3.5 10.15 8 11.35C16.5 22.15 20 17.25 20 12V6l-8-4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
           </svg>
-          TEE EXPLORER
+          NEAR AI TEE
         </a>
       </div>
     </div>

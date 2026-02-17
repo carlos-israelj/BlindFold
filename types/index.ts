@@ -65,9 +65,11 @@ export interface MessageVerification {
   chat_id: string;
   request_hash: string;
   response_hash: string;
+  signed_text?: string;
   signature: string;
   signing_address: string;
   signing_algo: string;
+  verified?: boolean;
   nova_cid?: string;
 }
 
