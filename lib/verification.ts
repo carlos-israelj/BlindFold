@@ -140,32 +140,45 @@ export async function verifyFullAttestation(
 
     console.log('[verifyFullAttestation] Attestation fetched, verifying...');
 
+    // Real structure from NEAR AI Cloud:
+    // attestation.model_attestations[0].nvidia_payload  — string JSON
+    // attestation.model_attestations[0].signing_address — ECDSA address
+    // attestation.gateway_attestation.intel_quote       — TDX quote
+
+    const modelAttestation = attestation.model_attestations?.[0];
+
     // Step 1: Verify NVIDIA GPU attestation
     let nvidia_verdict: string | null = null;
-    const nvidiaPayload = attestation.nvidia_payload || attestation.model_attestations?.[0]?.gpu_evidence_payload;
-    if (nvidiaPayload) {
+    if (modelAttestation?.nvidia_payload) {
+      // nvidia_payload may be a JSON string or already an object
+      const nvidiaPayload = typeof modelAttestation.nvidia_payload === 'string'
+        ? JSON.parse(modelAttestation.nvidia_payload)
+        : modelAttestation.nvidia_payload;
       nvidia_verdict = await verifyNvidiaAttestation(nvidiaPayload);
     }
 
     // Step 2: Verify signing address is bound to the TEE
-    // The attestation should contain the signing address in model_attestations
+    // Match the signing address used to sign the chat response against model_attestations
     let tdx_verified = false;
     if (attestation.model_attestations && Array.isArray(attestation.model_attestations)) {
       const matchingAttestation = attestation.model_attestations.find(
         (a: any) => a.signing_address?.toLowerCase() === signingAddress.toLowerCase()
       );
-      // If we found a matching attestation entry, the signing key is hardware-bound
+      // If signing address appears in model_attestations, the key is hardware-bound to the TEE
       tdx_verified = !!matchingAttestation;
       console.log('[verifyFullAttestation] TDX signing address match:', tdx_verified);
     }
 
-    // Step 3: Extract compose manifest for display
-    const compose_manifest = attestation.info?.compose_manifest || null;
+    // Step 3: Extract compose manifest and intel quote
+    // Real structure: gateway_attestation.intel_quote, model_attestations[0].info.compose_manifest
+    const compose_manifest = modelAttestation?.info?.compose_manifest
+      || attestation.gateway_attestation?.info?.compose_manifest
+      || null;
 
     return {
-      report: attestation.intel_quote || null,
-      signing_cert: attestation.signing_cert || null,
-      nonce: attestation.request_nonce || nonce,
+      report: modelAttestation?.intel_quote || attestation.gateway_attestation?.intel_quote || null,
+      signing_cert: modelAttestation?.signing_public_key || null,
+      nonce: modelAttestation?.request_nonce || attestation.gateway_attestation?.request_nonce || nonce,
       nvidia_verdict,
       tdx_verified,
       compose_manifest,

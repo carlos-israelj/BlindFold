@@ -34,13 +34,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       loading: true,
     }));
 
-    // Try to restore portfolio from NOVA vault
+    // Try to restore portfolio from NOVA vault (non-blocking, best-effort)
     try {
       const vaultRes = await fetch(`/api/vault/portfolio?accountId=${encodeURIComponent(accountId)}&groupId=vault.${accountId}`);
+      // 400/404 = vault not set up yet — not an error, just skip
       if (vaultRes.ok) {
         const vaultData = await vaultRes.json();
         if (vaultData.hasPortfolio && vaultData.portfolio?.assets) {
-          // Convert vault portfolio format to Portfolio type
           const holdings = vaultData.portfolio.assets.map((a: any) => ({
             token: a.symbol,
             contract: '',
@@ -67,9 +67,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (err) {
+      // Vault not configured or network error — not fatal, continue
       console.warn('[WalletContext] Could not restore portfolio from NOVA vault:', err);
     }
 
+    // Always clear loading, even if vault restore failed or was skipped
     setState((prev) => ({ ...prev, loading: false }));
   }, []);
 
