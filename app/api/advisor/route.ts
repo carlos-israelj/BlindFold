@@ -67,12 +67,16 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Verifications are stored under the relayer account (env::predecessor_account_id())
+    // not the user's wallet — use CONTRACT_ID to fetch all verifications
+    const RELAYER_ID = process.env.RELAYER_ACCOUNT_ID || process.env.NEXT_PUBLIC_CONTRACT_ID || 'ecuador5.near';
+
     // Get specific request + its verification (single round-trip for polling)
     if (requestId) {
       const reqId = parseInt(requestId);
       const [request, verifications] = await Promise.all([
         getRequest(reqId),
-        getUserVerifications(accountId),
+        getUserVerifications(RELAYER_ID),
       ]);
       const verification = verifications.find(v => v.request_id === reqId) || null;
       return NextResponse.json({
@@ -83,8 +87,8 @@ export async function GET(req: NextRequest) {
 
     // Get all user requests and verifications
     const [requests, verifications] = await Promise.all([
-      getUserRequests(accountId),
-      getUserVerifications(accountId),
+      getUserRequests(RELAYER_ID),
+      getUserVerifications(RELAYER_ID),
     ]);
 
     return NextResponse.json({
