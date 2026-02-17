@@ -67,12 +67,17 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get specific request
+    // Get specific request + its verification (single round-trip for polling)
     if (requestId) {
-      const request = await getRequest(parseInt(requestId));
+      const reqId = parseInt(requestId);
+      const [request, verifications] = await Promise.all([
+        getRequest(reqId),
+        getUserVerifications(accountId),
+      ]);
+      const verification = verifications.find(v => v.request_id === reqId) || null;
       return NextResponse.json({
         success: true,
-        data: { request },
+        data: { request, verification, verifications },
       });
     }
 

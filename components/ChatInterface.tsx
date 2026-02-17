@@ -39,6 +39,47 @@ export default function ChatInterface() {
     }
   }, [input]);
 
+  // Poll the contract until request is Completed, then update the pending message
+  const pollOnChainResult = async (requestId: number, msgTimestamp: string) => {
+    const maxAttempts = 40; // 40 × 3s = 2 min max
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      try {
+        const res = await fetch(`/api/advisor?accountId=${encodeURIComponent(accountId || '')}&requestId=${requestId}`);
+        const data = await res.json();
+        const req = data?.data?.request;
+        const verification = data?.data?.verification;
+
+        if (req?.status === 'Completed') {
+          const responseText = verification?.response_text || `Request #${requestId} completed. Check NEARBlocks for details.`;
+          setMessages(prev => prev.map(m =>
+            m.timestamp === msgTimestamp
+              ? { ...m, content: responseText, verification }
+              : m
+          ));
+          return;
+        }
+
+        if (req?.status === 'Failed') {
+          setMessages(prev => prev.map(m =>
+            m.timestamp === msgTimestamp
+              ? { ...m, content: `❌ Request #${requestId} failed on-chain. Please try again.` }
+              : m
+          ));
+          return;
+        }
+      } catch {
+        // continue polling on error
+      }
+    }
+    // Timeout
+    setMessages(prev => prev.map(m =>
+      m.timestamp === msgTimestamp
+        ? { ...m, content: `⏱ Request #${requestId} is taking longer than expected. Check ecuador5.near on NEARBlocks for the result.` }
+        : m
+    ));
+  };
+
   const sendMessage = async (text?: string) => {
     const content = (text ?? input).trim();
     if (!content || loading || !portfolio) return;
@@ -70,13 +111,21 @@ export default function ChatInterface() {
       const data = await response.json();
       if (!data.success) throw new Error(data.error || 'Failed to get response');
 
+      const msgTimestamp = new Date().toISOString();
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: data.data.content,
-        timestamp: new Date().toISOString(),
+        timestamp: msgTimestamp,
         verification: data.data.verification,
       };
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // On-chain mode: poll for the actual response in the background
+      if (data.data.pending && data.data.requestId !== undefined) {
+        setLoading(false);
+        pollOnChainResult(data.data.requestId, msgTimestamp);
+        return;
+      }
     } catch (error: any) {
       const errorMessage: ChatMessage = {
         role: 'assistant',
