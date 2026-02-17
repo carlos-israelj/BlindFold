@@ -6,6 +6,14 @@ import { VaultProvider } from "@/contexts/VaultContext";
 export const metadata: Metadata = {
   title: "BlindFold — Private Crypto Financial Advisor",
   description: "The first privacy-verified crypto financial advisor. Powered by NEAR AI Cloud TEE-based private inference and NOVA encrypted storage.",
+  icons: {
+    icon: [
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+    shortcut: "/favicon-32x32.png",
+  },
 };
 
 export default function RootLayout({
