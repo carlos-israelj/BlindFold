@@ -176,14 +176,18 @@ class TEERelayer {
       console.log(`   TEE signature obtained`);
       console.log(`   Signing address: ${signatureData.signing_address}`);
 
-      // Verify signature locally
-      const expectedText = `${requestHash}:${responseHash}`;
-      const recoveredAddress = ethers.verifyMessage(expectedText, signatureData.signature);
+      // Verify signature using signatureData.text (canonical signed string from NEAR AI Cloud)
+      // Format: "requestHash:responseHash" — use the API's version, not our local computation
+      const signedText = signatureData.text || `${requestHash}:${responseHash}`;
+      const recoveredAddress = ethers.verifyMessage(signedText, signatureData.signature);
       const isValid = recoveredAddress.toLowerCase() === signatureData.signing_address.toLowerCase();
 
       if (!isValid) {
         throw new Error('Signature verification failed!');
       }
+
+      // Parse canonical hashes from the signed text
+      const [canonicalReqHash, canonicalResHash] = signedText.split(':');
 
       console.log(`   ✓ Signature verified locally`);
 
@@ -194,8 +198,8 @@ class TEERelayer {
           'store_verification',
           {
             request_id: request.id,
-            request_hash: requestHash,
-            response_hash: responseHash,
+            request_hash: canonicalReqHash || requestHash,
+            response_hash: canonicalResHash || responseHash,
             signature: signatureData.signature,
             signing_address: signatureData.signing_address,
             signing_algo: signatureData.signing_algo,

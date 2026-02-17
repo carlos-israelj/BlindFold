@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { askAdvisor, getRequest, getUserRequests, getUserVerifications, pollForCompletion } from '@/lib/blindfold-contract';
+import { askAdvisor, getRequest, getUserRequests, getUserVerifications } from '@/lib/blindfold-contract';
 
 /**
  * POST /api/advisor - Submit question to smart contract (on-chain verification)
@@ -30,32 +30,16 @@ export async function POST(req: NextRequest) {
     const requestId = await askAdvisor(accountId, question, portfolio || '{}');
 
     console.log(`✅ Request submitted with ID: ${requestId}`);
-    console.log(`⏳ Waiting for relayer to process...`);
 
-    // Poll for completion (max 60 seconds)
-    const completedRequest = await pollForCompletion(requestId, 30, 2000);
-
-    if (!completedRequest) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Request timeout - relayer is processing your request',
-          data: { requestId },
-        },
-        { status: 202 } // Accepted but not yet processed
-      );
-    }
-
-    // Get verification details
-    const verifications = await getUserVerifications(accountId);
-    const verification = verifications.find(v => v.request_id === requestId);
-
+    // Return immediately — relayer processes asynchronously.
+    // The client should poll GET /api/advisor?accountId=...&requestId=... for completion.
     return NextResponse.json({
       success: true,
       data: {
         requestId,
-        response: completedRequest,
-        verification: verification || null,
+        content: `⏳ Request #${requestId} submitted to the NEAR blockchain. The TEE relayer is processing your question — this takes ~10–30 seconds. Your response will be stored on-chain at ecuador5.near.`,
+        pending: true,
+        verification: null,
       },
     });
   } catch (error: any) {
