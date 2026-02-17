@@ -52,9 +52,36 @@ export default function ChatInterface() {
 
         if (req?.status === 'Completed') {
           const responseText = verification?.response_text || `Request #${requestId} completed. Check NEARBlocks for details.`;
+
+          // Transform on-chain Verification into MessageVerification shape
+          // On-chain verifications are stored by the relayer after local signature
+          // verification — so verified: true is correct if we have a verification record
+          let msgVerification: import('@/types').MessageVerification | undefined;
+          if (verification) {
+            // Parse chatId from tee_attestation JSON string
+            let chatId = '';
+            try {
+              const att = typeof verification.tee_attestation === 'string'
+                ? JSON.parse(verification.tee_attestation)
+                : verification.tee_attestation;
+              chatId = att?.chatId || '';
+            } catch { /* ignore */ }
+
+            msgVerification = {
+              chat_id: chatId,
+              request_hash: verification.request_hash,
+              response_hash: verification.response_hash,
+              signed_text: `${verification.request_hash}:${verification.response_hash}`,
+              signature: verification.signature,
+              signing_address: verification.signing_address,
+              signing_algo: verification.signing_algo,
+              verified: true, // relayer verified before storing on-chain
+            };
+          }
+
           setMessages(prev => prev.map(m =>
             m.timestamp === msgTimestamp
-              ? { ...m, content: responseText, verification }
+              ? { ...m, content: responseText, verification: msgVerification }
               : m
           ));
           return;
