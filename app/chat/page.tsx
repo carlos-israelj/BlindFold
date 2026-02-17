@@ -28,36 +28,29 @@ export default function ChatPage() {
   const [showPortfolioForm, setShowPortfolioForm] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [selectedSwapRecommendation, setSelectedSwapRecommendation] = useState<SwapRecommendation | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isConnected) {
-      router.push('/');
-    }
+    if (!isConnected) router.push('/');
   }, [isConnected, router]);
 
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 4000);
+  };
+
   const handleSavePortfolio = async (assets: PortfolioAsset[]) => {
-    try {
-      const response = await fetch('/api/vault/portfolio', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId,
-          groupId: vaultId,
-          assets,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setShowPortfolioForm(false);
-        alert(`Portfolio updated successfully! CID: ${data.cid}`);
-      } else {
-        throw new Error(data.error || 'Failed to save portfolio');
-      }
-    } catch (error: any) {
-      console.error('Error saving portfolio:', error);
-      throw error;
+    const response = await fetch('/api/vault/portfolio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId, groupId: vaultId, assets }),
+    });
+    const data = await response.json();
+    if (data.success) {
+      setShowPortfolioForm(false);
+      showToast(`Portfolio updated · CID: ${data.cid?.slice(0, 16)}…`);
+    } else {
+      throw new Error(data.error || 'Failed to save portfolio');
     }
   };
 
@@ -68,21 +61,40 @@ export default function ChatPage() {
 
   if (!isConnected) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-4xl mb-4">🔒</div>
-          <p className="text-gray-600">Redirecting to home...</p>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        minHeight: '100vh', background: 'var(--ink)',
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style={{ margin: '0 auto' }}>
+              <rect x="3" y="11" width="18" height="11" rx="2" stroke="var(--cyan)" strokeWidth="1.5"/>
+              <path d="M7 11V7a5 5 0 0110 0v4" stroke="var(--cyan)" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <p style={{ color: 'var(--dim)', fontSize: 13 }}>Redirecting...</p>
         </div>
       </div>
     );
   }
 
+  // Truncate account ID for display
+  const displayAccount = accountId && accountId.length > 32
+    ? `${accountId.slice(0, 10)}…${accountId.slice(-6)}`
+    : accountId;
+
   return (
-    <div className="h-screen flex flex-col">
-      {/* NOVA Setup Banner */}
+    <div style={{
+      height: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'var(--ink)',
+      overflow: 'hidden',
+    }}>
+      {/* ── Nova Setup Banner ─────────────────────── */}
       <NovaSetupBanner />
 
-      {/* Portfolio Form Modal */}
+      {/* ── Portfolio Form Modal ───────────────────── */}
       <PortfolioForm
         isOpen={showPortfolioForm}
         onClose={() => setShowPortfolioForm(false)}
@@ -90,64 +102,125 @@ export default function ChatPage() {
         groupId={vaultId || ''}
       />
 
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-2xl font-bold text-gray-900">
-              🔒 BlindFold
-            </Link>
-            <span className="text-sm text-gray-500">|</span>
-            <span className="text-sm text-gray-600">
-              {accountId}
+      {/* ── Header ────────────────────────────────── */}
+      <header style={{
+        background: 'var(--surface)',
+        borderBottom: '1px solid var(--border)',
+        padding: '0 24px',
+        height: 56,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexShrink: 0,
+        position: 'relative',
+        zIndex: 10,
+      }}>
+        {/* Left: Logo + Account */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+            <div className="logo-mark" style={{ width: 30, height: 30, borderRadius: 7 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L4 6v6c0 5.25 3.5 10.15 8 11.35C16.5 22.15 20 17.25 20 12V6l-8-4z"
+                  fill="rgba(7,8,15,0.8)" stroke="rgba(7,8,15,0.8)" strokeWidth="0.5" />
+                <path d="M9 12l2 2 4-4" stroke="#07080f" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <span style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 16,
+              fontWeight: 700,
+              color: 'var(--heading)',
+            }}>
+              BlindFold
+            </span>
+          </Link>
+
+          <div style={{
+            width: 1, height: 20,
+            background: 'var(--border-hi)',
+          }} />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="status-dot status-dot-online" />
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              color: 'var(--dim)',
+              maxWidth: 200,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}>
+              {displayAccount}
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
-            {vaultId && (
-              <button
-                onClick={() => setShowPortfolioForm(true)}
-                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Update Portfolio
-              </button>
-            )}
-            <Link
-              href="/vault"
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              Vault Controls
-            </Link>
-            <button
-              onClick={disconnect}
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Disconnect
-            </button>
-          </div>
+          {vaultId && (
+            <div className="badge badge-cyan" style={{ fontSize: 9 }}>
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="2"/>
+                <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+              Vault Active
+            </div>
+          )}
         </div>
 
-        {vaultId && (
-          <div className="mt-2 text-xs text-gray-500">
-            Vault: <span className="font-mono">{vaultId}</span>
-          </div>
-        )}
+        {/* Right: Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {vaultId && (
+            <button
+              onClick={() => setShowPortfolioForm(true)}
+              className="btn btn-primary"
+              style={{ padding: '7px 14px', fontSize: 11 }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+              </svg>
+              Update Portfolio
+            </button>
+          )}
+          <Link
+            href="/vault"
+            className="btn btn-ghost"
+            style={{ padding: '7px 14px', fontSize: 11 }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+              <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            Vault
+          </Link>
+          <button
+            onClick={disconnect}
+            className="btn btn-danger"
+            style={{ padding: '7px 14px', fontSize: 11 }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Disconnect
+          </button>
+        </div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 flex flex-col">
+      {/* ── Main Content ──────────────────────────── */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        {/* Chat area */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Alert Banner */}
-          <div className="px-6 pt-4">
+          <div style={{ padding: '12px 20px 0', flexShrink: 0 }}>
             <AlertBanner onSwapClick={handleSwapClick} />
           </div>
 
           <ChatInterface />
         </div>
+
+        {/* Portfolio Sidebar */}
         <PortfolioSidebar />
       </div>
 
-      {/* Swap Modal */}
+      {/* ── Swap Modal ────────────────────────────── */}
       <SwapModal
         isOpen={showSwapModal}
         onClose={() => {
@@ -156,6 +229,30 @@ export default function ChatPage() {
         }}
         recommendation={selectedSwapRecommendation}
       />
+
+      {/* ── Toast Notification ────────────────────── */}
+      {toastMsg && (
+        <div
+          className="animate-fade-up"
+          style={{
+            position: 'fixed', bottom: 24, left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--elevated)',
+            border: '1px solid var(--cyan-dim)',
+            borderRadius: 'var(--r-md)',
+            padding: '10px 20px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 12,
+            color: 'var(--cyan)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 0 24px var(--cyan-glow)',
+            zIndex: 100,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span style={{ marginRight: 8, color: 'var(--success)' }}>✓</span>
+          {toastMsg}
+        </div>
+      )}
     </div>
   );
 }
