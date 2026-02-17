@@ -52,9 +52,9 @@ export async function POST(request: NextRequest) {
         const signatureData = await fetchSignature(chatId, DEFAULT_MODEL, apiKey);
 
         if (signatureData) {
-          // Actually validate the cryptographic signature
+          // NEAR AI Cloud signs `requestHash:responseHash`, not the raw content
           const isVerified = verifySignature({
-            text: content,
+            text: `${requestHash}:${responseHash}`,
             signature: signatureData.signature,
             signing_address: signatureData.signing_address,
             signing_algo: signatureData.signing_algo,
