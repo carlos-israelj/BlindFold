@@ -2,6 +2,7 @@
 
 import { MessageBubbleProps } from '@/types';
 import VerificationBadge from './VerificationBadge';
+import { OnChainVerification } from './OnChainVerification';
 
 export default function MessageBubble({ message, isUser }: MessageBubbleProps) {
   const time = new Date(message.timestamp).toLocaleTimeString([], {
@@ -74,6 +75,7 @@ export default function MessageBubble({ message, isUser }: MessageBubbleProps) {
         {message.verification && (
           <div style={{ paddingLeft: 2 }}>
             <VerificationBadge verification={message.verification} />
+            <OnChainVerification verification={message.verification} />
           </div>
         )}
 

@@ -43,10 +43,9 @@ export interface RiskScore {
 }
 
 /**
- * Get NEAR connection
+ * Get NEAR connection (read-only, no signing key needed)
  */
 async function getNearConnection() {
-  // Use InMemoryKeyStore so this works in both browser and Node/server environments
   const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
   const config = {
     networkId: NEAR_NETWORK,
@@ -55,8 +54,35 @@ async function getNearConnection() {
     walletUrl: `https://wallet.${NEAR_NETWORK}.near.org`,
     helperUrl: `https://helper.${NEAR_NETWORK}.near.org`,
   };
-
   return await nearAPI.connect(config);
+}
+
+/**
+ * Get NEAR connection with relayer signing key loaded from env
+ * Used for server-side write transactions (ask_advisor, etc.)
+ */
+async function getNearConnectionWithKey(): Promise<{ near: nearAPI.Near; signerId: string }> {
+  const relayerAccountId = process.env.RELAYER_ACCOUNT_ID || process.env.NEXT_PUBLIC_CONTRACT_ID || CONTRACT_ID;
+  const relayerPrivateKey = process.env.RELAYER_PRIVATE_KEY;
+
+  if (!relayerPrivateKey) {
+    throw new Error('RELAYER_PRIVATE_KEY env var is required for on-chain transactions');
+  }
+
+  const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
+  const keyPair = nearAPI.KeyPair.fromString(relayerPrivateKey as nearAPI.utils.key_pair.KeyPairString);
+  await keyStore.setKey(NEAR_NETWORK, relayerAccountId, keyPair);
+
+  const config = {
+    networkId: NEAR_NETWORK,
+    keyStore,
+    nodeUrl: `https://rpc.${NEAR_NETWORK}.near.org`,
+    walletUrl: `https://wallet.${NEAR_NETWORK}.near.org`,
+    helperUrl: `https://helper.${NEAR_NETWORK}.near.org`,
+  };
+
+  const near = await nearAPI.connect(config);
+  return { near, signerId: relayerAccountId };
 }
 
 /**
@@ -74,17 +100,20 @@ export async function askAdvisor(
   portfolioData: string
 ): Promise<number> {
   try {
-    const near = await getNearConnection();
-    const account = await near.account(accountId);
+    // Use relayer key to sign the transaction server-side
+    const { near, signerId } = await getNearConnectionWithKey();
+    const account = await near.account(signerId);
 
     // Call smart contract's ask_advisor method
-    // Requires 0.01 NEAR deposit for storage
+    // Requires 0.01 NEAR deposit for storage — paid by relayer
     const result = await account.functionCall({
       contractId: CONTRACT_ID,
       methodName: 'ask_advisor',
       args: {
         question,
         portfolio_data: portfolioData,
+        // Pass user accountId so contract can record who asked
+        user: accountId,
       },
       gas: BigInt('30000000000000'), // 30 Tgas
       attachedDeposit: BigInt(parseNearAmount('0.01') || '0'), // 0.01 NEAR for storage

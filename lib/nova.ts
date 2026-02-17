@@ -133,18 +133,19 @@ export async function listVaultFiles(
   }
 
   try {
-    // Check if NOVA SDK has a list method
-    if (typeof (nova as any).list === 'function') {
-      const files = await (nova as any).list(vaultId);
-      return files;
-    } else {
-      // If no list method, return placeholder
-      console.log('NOVA SDK list method not available');
-      return [];
+    // Use getTransactionsForGroup as the source of truth for vault files
+    const transactions = await nova.getTransactionsForGroup(vaultId);
+    if (transactions && transactions.length > 0) {
+      return transactions.map((tx) => ({
+        cid: tx.ipfs_hash,
+        filename: tx.file_hash,
+        size: 0,
+        uploadedAt: new Date().toISOString(),
+      }));
     }
+    return [];
   } catch (error) {
     console.error('Error listing vault files:', error);
-    // Return empty array instead of throwing
     return [];
   }
 }

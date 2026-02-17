@@ -24,14 +24,53 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     error: null,
   });
 
-  const connect = useCallback((accountId: string) => {
+  const connect = useCallback(async (accountId: string) => {
     console.log('WalletContext.connect() called with accountId:', accountId);
     setState((prev) => ({
       ...prev,
       accountId,
       isConnected: true,
       error: null,
+      loading: true,
     }));
+
+    // Try to restore portfolio from NOVA vault
+    try {
+      const vaultRes = await fetch(`/api/vault/portfolio?accountId=${encodeURIComponent(accountId)}&groupId=vault.${accountId}`);
+      if (vaultRes.ok) {
+        const vaultData = await vaultRes.json();
+        if (vaultData.hasPortfolio && vaultData.portfolio?.assets) {
+          // Convert vault portfolio format to Portfolio type
+          const holdings = vaultData.portfolio.assets.map((a: any) => ({
+            token: a.symbol,
+            contract: '',
+            balance: String(a.balance),
+            decimals: 24,
+            symbol: a.symbol,
+            name: a.symbol,
+            valueUSD: a.value,
+          }));
+          const restoredPortfolio: Portfolio = {
+            version: 1,
+            accountId,
+            lastUpdated: vaultData.portfolio.metadata?.uploadedAt || new Date().toISOString(),
+            holdings,
+            totalValueUSD: String(holdings.reduce((s: number, h: any) => s + (h.valueUSD || 0), 0)),
+          };
+          setState((prev) => ({
+            ...prev,
+            portfolio: restoredPortfolio,
+            loading: false,
+          }));
+          console.log('[WalletContext] Portfolio restored from NOVA vault');
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[WalletContext] Could not restore portfolio from NOVA vault:', err);
+    }
+
+    setState((prev) => ({ ...prev, loading: false }));
   }, []);
 
   const disconnect = useCallback(() => {

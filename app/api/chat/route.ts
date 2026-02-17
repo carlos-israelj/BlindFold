@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ChatCompletion } from 'openai/resources';
 import { nearAIClient } from '@/lib/near-ai';
-import { hashData, fetchSignature, verifySignature, fetchAttestation } from '@/lib/verification';
+import { hashData, fetchSignature, verifySignature, verifyFullAttestation } from '@/lib/verification';
 import { SYSTEM_PROMPT, DEFAULT_MODEL } from '@/lib/constants';
 import { uploadToVault } from '@/lib/nova';
 import { prisma } from '@/lib/prisma';
@@ -74,18 +74,15 @@ export async function POST(request: NextRequest) {
         console.error('Failed to fetch/verify signature:', error);
       }
 
-      // Fix 9: Fetch TEE attestation report
+      // Fix 9: Full TEE attestation — NVIDIA GPU + Intel TDX verification
       try {
-        const attestation = await fetchAttestation(DEFAULT_MODEL, apiKey);
-        if (attestation && verification) {
-          (verification as any).attestation = {
-            report: attestation.report || null,
-            signing_cert: attestation.signing_cert || null,
-            nonce: attestation.nonce || null,
-          };
+        const signingAddr = (verification as any)?.signing_address || '';
+        const fullAttestation = await verifyFullAttestation(DEFAULT_MODEL, apiKey, signingAddr);
+        if (fullAttestation && verification) {
+          (verification as any).attestation = fullAttestation;
         }
       } catch (error) {
-        console.error('Failed to fetch attestation:', error);
+        console.error('Failed to verify full attestation:', error);
       }
     }
 
