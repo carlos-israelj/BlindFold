@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ChatCompletion } from 'openai/resources';
 import { nearAIClient } from '@/lib/near-ai';
-import { hashData, fetchSignature } from '@/lib/verification';
+import { hashData, fetchSignature, verifySignature, fetchAttestation } from '@/lib/verification';
 import { SYSTEM_PROMPT, DEFAULT_MODEL } from '@/lib/constants';
+import { uploadToVault } from '@/lib/nova';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, portfolio } = await request.json();
+    const { messages, portfolio, accountId } = await request.json();
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -41,7 +43,7 @@ export async function POST(request: NextRequest) {
     // Hash the response
     const responseHash = hashData(content);
 
-    // Fetch signature for verification
+    // Fetch and VERIFY signature — Fix 8
     let verification = null;
     const apiKey = process.env.NEAR_AI_API_KEY;
 
@@ -50,6 +52,14 @@ export async function POST(request: NextRequest) {
         const signatureData = await fetchSignature(chatId, DEFAULT_MODEL, apiKey);
 
         if (signatureData) {
+          // Actually validate the cryptographic signature
+          const isVerified = verifySignature({
+            text: content,
+            signature: signatureData.signature,
+            signing_address: signatureData.signing_address,
+            signing_algo: signatureData.signing_algo,
+          });
+
           verification = {
             chat_id: chatId,
             request_hash: requestHash,
@@ -57,12 +67,57 @@ export async function POST(request: NextRequest) {
             signature: signatureData.signature,
             signing_address: signatureData.signing_address,
             signing_algo: signatureData.signing_algo,
+            verified: isVerified,
           };
         }
       } catch (error) {
-        console.error('Failed to fetch signature:', error);
-        // Continue without verification rather than failing
+        console.error('Failed to fetch/verify signature:', error);
       }
+
+      // Fix 9: Fetch TEE attestation report
+      try {
+        const attestation = await fetchAttestation(DEFAULT_MODEL, apiKey);
+        if (attestation && verification) {
+          (verification as any).attestation = {
+            report: attestation.report || null,
+            signing_cert: attestation.signing_cert || null,
+            nonce: attestation.nonce || null,
+          };
+        }
+      } catch (error) {
+        console.error('Failed to fetch attestation:', error);
+      }
+    }
+
+    // Fix 3: Save chat exchange to NOVA vault in background (non-blocking)
+    let chatCid: string | null = null;
+    if (accountId) {
+      (async () => {
+        try {
+          const user = await prisma.user.findUnique({ where: { accountId }, select: { id: true } });
+          if (user) {
+            const vault = await prisma.vault.findFirst({ where: { userId: user.id } });
+            if (vault?.groupId) {
+              const chatEntry = {
+                timestamp: new Date().toISOString(),
+                question: lastUserMessage.content,
+                answer: content,
+                verified: (verification as any)?.verified ?? false,
+                chat_id: (verification as any)?.chat_id ?? null,
+              };
+              chatCid = await uploadToVault(
+                accountId,
+                vault.groupId,
+                chatEntry,
+                `chat-${Date.now()}.json`
+              );
+              console.log(`Chat history saved to NOVA vault: ${chatCid}`);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to save chat to NOVA vault (non-blocking):', err);
+        }
+      })();
     }
 
     return NextResponse.json({

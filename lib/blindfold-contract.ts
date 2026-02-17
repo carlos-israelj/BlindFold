@@ -46,9 +46,11 @@ export interface RiskScore {
  * Get NEAR connection
  */
 async function getNearConnection() {
+  // Use InMemoryKeyStore so this works in both browser and Node/server environments
+  const keyStore = new nearAPI.keyStores.InMemoryKeyStore();
   const config = {
     networkId: NEAR_NETWORK,
-    keyStore: new nearAPI.keyStores.BrowserLocalStorageKeyStore(),
+    keyStore,
     nodeUrl: `https://rpc.${NEAR_NETWORK}.near.org`,
     walletUrl: `https://wallet.${NEAR_NETWORK}.near.org`,
     helperUrl: `https://helper.${NEAR_NETWORK}.near.org`,

@@ -14,10 +14,11 @@ const SUGGESTED_PROMPTS = [
 ];
 
 export default function ChatInterface() {
-  const { portfolio } = useWallet();
+  const { portfolio, accountId } = useWallet();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [onChainMode, setOnChainMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -54,12 +55,15 @@ export default function ChatInterface() {
 
     try {
       const portfolioContext = formatPortfolioForAI(portfolio);
-      const response = await fetch('/api/chat', {
+      const endpoint = onChainMode ? '/api/advisor' : '/api/chat';
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [...messages, userMessage],
           portfolio: portfolioContext,
+          accountId,
+          question: content,
         }),
       });
 
@@ -340,18 +344,42 @@ export default function ChatInterface() {
           </button>
         </div>
 
-        {/* Security note */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          marginTop: 8,
-          justifyContent: 'center',
-        }}>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2L4 6v6c0 5.25 3.5 10.15 8 11.35C16.5 22.15 20 17.25 20 12V6l-8-4z" stroke="var(--success)" strokeWidth="1.5" strokeLinejoin="round"/>
-          </svg>
-          <span style={{ fontSize: 10, color: 'var(--muted)' }}>
-            End-to-end encrypted · TEE-attested responses · Verified on NEAR
-          </span>
+        {/* Security note + on-chain toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, flexWrap: 'wrap', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L4 6v6c0 5.25 3.5 10.15 8 11.35C16.5 22.15 20 17.25 20 12V6l-8-4z" stroke="var(--success)" strokeWidth="1.5" strokeLinejoin="round"/>
+            </svg>
+            <span style={{ fontSize: 10, color: 'var(--muted)' }}>
+              End-to-end encrypted · TEE-attested responses · Verified on NEAR
+            </span>
+          </div>
+
+          {/* On-chain mode toggle */}
+          <button
+            onClick={() => setOnChainMode(m => !m)}
+            title={onChainMode ? 'On-chain mode: response stored on NEAR blockchain' : 'Standard mode: fast private inference'}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '3px 8px',
+              background: onChainMode ? 'rgba(0,212,255,0.1)' : 'var(--elevated)',
+              border: `1px solid ${onChainMode ? 'var(--cyan-dim)' : 'var(--border-hi)'}`,
+              borderRadius: 20,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 9,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              color: onChainMode ? 'var(--cyan)' : 'var(--muted)',
+              transition: 'all 0.15s',
+              flexShrink: 0,
+            }}
+          >
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            {onChainMode ? 'ON-CHAIN' : 'STANDARD'}
+          </button>
         </div>
       </div>
     </div>

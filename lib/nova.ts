@@ -184,13 +184,74 @@ export async function deleteVault(accountId: string, vaultId: string): Promise<v
   }
 
   try {
-    // Note: NOVA SDK may not have deleteGroup method
-    // For now, this is a placeholder - vault deletion may need manual intervention
-    console.log(`Vault deletion requested for ${vaultId}`);
-    // await nova.deleteGroup(vaultId);
-    throw new Error('Vault deletion not yet implemented in NOVA SDK');
+    // Soft-delete: revoke the owner's own access so the encrypted data
+    // in IPFS becomes permanently inaccessible without the Shade-derived key.
+    // The NOVA account ID is the member identifier, not the wallet address.
+    const user = await prisma.user.findUnique({
+      where: { accountId },
+      select: { novaAccountId: true, id: true },
+    });
+
+    if (!user?.novaAccountId) {
+      throw new Error('NOVA account ID not found');
+    }
+
+    await nova.revokeGroupMember(vaultId, user.novaAccountId);
+    console.log(`Vault access revoked for ${user.novaAccountId} on group ${vaultId}`);
+
+    // Remove vault record from database
+    await prisma.vault.deleteMany({ where: { userId: user.id } });
+    console.log(`Vault database record deleted for ${accountId}`);
   } catch (error) {
     console.error('Error deleting vault:', error);
     throw error;
+  }
+}
+
+export async function addVaultMember(
+  accountId: string,
+  vaultId: string,
+  memberNovaId: string
+): Promise<void> {
+  const nova = await getNovaClient(accountId);
+  if (!nova) throw new Error('NOVA vault service is not available.');
+  await nova.addGroupMember(vaultId, memberNovaId);
+}
+
+export async function revokeVaultMember(
+  accountId: string,
+  vaultId: string,
+  memberNovaId: string
+): Promise<void> {
+  const nova = await getNovaClient(accountId);
+  if (!nova) throw new Error('NOVA vault service is not available.');
+  await nova.revokeGroupMember(vaultId, memberNovaId);
+}
+
+export async function getVaultChecksum(
+  accountId: string,
+  vaultId: string
+): Promise<string | null> {
+  const nova = await getNovaClient(accountId);
+  if (!nova) return null;
+  try {
+    return await nova.getGroupChecksum(vaultId);
+  } catch (error) {
+    console.error('Error getting vault checksum:', error);
+    return null;
+  }
+}
+
+export async function getVaultTransactions(
+  accountId: string,
+  vaultId: string
+): Promise<Array<{ group_id: string; user_id: string; file_hash: string; ipfs_hash: string }>> {
+  const nova = await getNovaClient(accountId);
+  if (!nova) return [];
+  try {
+    return await nova.getTransactionsForGroup(vaultId);
+  } catch (error) {
+    console.error('Error getting vault transactions:', error);
+    return [];
   }
 }

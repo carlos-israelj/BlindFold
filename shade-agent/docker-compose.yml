@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   shade-agent:
-    image: ghcr.io/carlos-israelj/blindfold-shade-agent:v1.0.7
+    image: ghcr.io/carlos-israelj/blindfold-shade-agent:v1.0.8
     container_name: shade-agent
     restart: unless-stopped
 

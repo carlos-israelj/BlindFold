@@ -6,12 +6,16 @@ import {
   deleteVault,
   listVaultFiles,
   getVaultInfo,
+  addVaultMember,
+  revokeVaultMember,
+  getVaultChecksum,
+  getVaultTransactions,
 } from '@/lib/nova';
 import { encryptAndUpload, getEncryptionInfo } from '@/lib/nova-encryption';
 
 export async function POST(request: NextRequest) {
   try {
-    const { accountId, action, vaultId, data, filename, cid } = await request.json();
+    const { accountId, action, vaultId, data, filename, cid, memberId } = await request.json();
 
     if (!accountId) {
       return NextResponse.json(
@@ -115,6 +119,34 @@ export async function POST(request: NextRequest) {
           success: true,
           data: { message: 'Vault deleted successfully' },
         });
+      }
+
+      case 'add_member': {
+        if (!vaultId || !memberId) {
+          return NextResponse.json({ success: false, error: 'vaultId and memberId are required' }, { status: 400 });
+        }
+        await addVaultMember(accountId, vaultId, memberId);
+        return NextResponse.json({ success: true, data: { message: `Member ${memberId} added` } });
+      }
+
+      case 'revoke_member': {
+        if (!vaultId || !memberId) {
+          return NextResponse.json({ success: false, error: 'vaultId and memberId are required' }, { status: 400 });
+        }
+        await revokeVaultMember(accountId, vaultId, memberId);
+        return NextResponse.json({ success: true, data: { message: `Member ${memberId} revoked` } });
+      }
+
+      case 'checksum': {
+        if (!vaultId) return NextResponse.json({ success: false, error: 'vaultId is required' }, { status: 400 });
+        const checksum = await getVaultChecksum(accountId, vaultId);
+        return NextResponse.json({ success: true, data: { checksum } });
+      }
+
+      case 'transactions': {
+        if (!vaultId) return NextResponse.json({ success: false, error: 'vaultId is required' }, { status: 400 });
+        const transactions = await getVaultTransactions(accountId, vaultId);
+        return NextResponse.json({ success: true, data: { transactions } });
       }
 
       case 'encryption_info': {

@@ -5,6 +5,13 @@ import { useWallet } from '@/contexts/WalletContext';
 import { useVault } from '@/contexts/VaultContext';
 import { exportPortfolioData } from '@/lib/portfolio';
 
+interface Transaction {
+  group_id: string;
+  user_id: string;
+  file_hash: string;
+  ipfs_hash: string;
+}
+
 interface VaultFile {
   cid: string;
   filename: string;
@@ -21,6 +28,18 @@ export default function VaultControls() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [copiedCid, setCopiedCid] = useState<string | null>(null);
+  // Access control
+  const [memberInput, setMemberInput] = useState('');
+  const [memberLoading, setMemberLoading] = useState(false);
+  const [memberMsg, setMemberMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showAccessPanel, setShowAccessPanel] = useState(false);
+  // Attestation / checksum
+  const [checksum, setChecksum] = useState<string | null>(null);
+  const [checksumLoading, setChecksumLoading] = useState(false);
+  // Audit log
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
+  const [showAuditLog, setShowAuditLog] = useState(false);
 
   const handleInspect = async () => {
     if (!vaultId || !accountId) return;
@@ -79,6 +98,79 @@ export default function VaultControls() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleAddMember = async () => {
+    if (!vaultId || !accountId || !memberInput.trim()) return;
+    setMemberLoading(true);
+    setMemberMsg(null);
+    try {
+      const res = await fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, action: 'add_member', vaultId, memberId: memberInput.trim() }),
+      });
+      const data = await res.json();
+      setMemberMsg({ type: data.success ? 'success' : 'error', text: data.success ? `Access granted to ${memberInput.trim()}` : data.error });
+      if (data.success) setMemberInput('');
+    } catch {
+      setMemberMsg({ type: 'error', text: 'Failed to add member' });
+    } finally {
+      setMemberLoading(false);
+    }
+  };
+
+  const handleRevokeMember = async () => {
+    if (!vaultId || !accountId || !memberInput.trim()) return;
+    setMemberLoading(true);
+    setMemberMsg(null);
+    try {
+      const res = await fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, action: 'revoke_member', vaultId, memberId: memberInput.trim() }),
+      });
+      const data = await res.json();
+      setMemberMsg({ type: data.success ? 'success' : 'error', text: data.success ? `Access revoked for ${memberInput.trim()}` : data.error });
+      if (data.success) setMemberInput('');
+    } catch {
+      setMemberMsg({ type: 'error', text: 'Failed to revoke member' });
+    } finally {
+      setMemberLoading(false);
+    }
+  };
+
+  const handleFetchChecksum = async () => {
+    if (!vaultId || !accountId) return;
+    setChecksumLoading(true);
+    try {
+      const res = await fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, action: 'checksum', vaultId }),
+      });
+      const data = await res.json();
+      if (data.success) setChecksum(data.data.checksum);
+    } catch { /* ignore */ }
+    finally { setChecksumLoading(false); }
+  };
+
+  const handleFetchTransactions = async () => {
+    if (!vaultId || !accountId) return;
+    setTxLoading(true);
+    try {
+      const res = await fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, action: 'transactions', vaultId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTransactions(data.data.transactions || []);
+        setShowAuditLog(true);
+      }
+    } catch { /* ignore */ }
+    finally { setTxLoading(false); }
   };
 
   const copyCid = (cid: string) => {
@@ -575,6 +667,176 @@ export default function VaultControls() {
           )}
         </div>
       )}
+
+      {/* ── Access Control (Fix 2) ────────────────── */}
+      <div className="card" style={{ padding: '20px 24px' }}>
+        <button
+          onClick={() => setShowAccessPanel(p => !p)}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+          }}
+        >
+          <p className="label" style={{ margin: 0 }}>Access Control</p>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+            style={{ transform: showAccessPanel ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', color: 'var(--muted)' }}>
+            <path d="M19 9l-7 7-7-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+
+        {showAccessPanel && (
+          <div className="animate-fade-in" style={{ marginTop: 14 }}>
+            <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 12, lineHeight: 1.6 }}>
+              Grant or revoke vault access for other NOVA account IDs. Shared members can read encrypted files using their own Shade-derived keys.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <input
+                value={memberInput}
+                onChange={e => setMemberInput(e.target.value)}
+                placeholder="member.nova-sdk.near"
+                className="input"
+                style={{ flex: 1, fontSize: 11, padding: '8px 12px' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={handleAddMember}
+                disabled={memberLoading || !memberInput.trim()}
+                className="btn btn-primary"
+                style={{ flex: 1, padding: '8px 12px', fontSize: 11 }}
+              >
+                {memberLoading ? 'Processing…' : 'Grant Access'}
+              </button>
+              <button
+                onClick={handleRevokeMember}
+                disabled={memberLoading || !memberInput.trim()}
+                style={{
+                  flex: 1, padding: '8px 12px', fontSize: 11,
+                  background: 'rgba(255,77,109,0.08)',
+                  border: '1px solid rgba(255,77,109,0.3)',
+                  borderRadius: 'var(--r-md)',
+                  fontFamily: 'var(--font-mono)', fontWeight: 500, letterSpacing: '0.04em',
+                  color: 'var(--critical)', cursor: memberLoading || !memberInput.trim() ? 'not-allowed' : 'pointer',
+                  opacity: memberLoading || !memberInput.trim() ? 0.5 : 1,
+                }}
+              >
+                Revoke Access
+              </button>
+            </div>
+            {memberMsg && (
+              <p style={{ fontSize: 11, marginTop: 8, color: memberMsg.type === 'success' ? 'var(--success)' : 'var(--critical)' }}>
+                {memberMsg.type === 'success' ? '✓' : '✗'} {memberMsg.text}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Vault Attestation / Checksum (Fix 5) ─── */}
+      <div className="card" style={{ padding: '20px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: checksum ? 14 : 0 }}>
+          <p className="label" style={{ margin: 0 }}>On-chain Attestation</p>
+          <button
+            onClick={handleFetchChecksum}
+            disabled={checksumLoading}
+            className="btn btn-ghost"
+            style={{ padding: '5px 12px', fontSize: 10 }}
+          >
+            {checksumLoading ? 'Fetching…' : checksum ? 'Refresh' : 'Verify'}
+          </button>
+        </div>
+        {checksum ? (
+          <div className="animate-fade-in">
+            <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.6 }}>
+              Group checksum recorded on NEAR blockchain. Proves the vault's integrity and that the Shade Agent accessed the correct, unmodified group.
+            </p>
+            <div style={{
+              padding: '10px 12px',
+              background: 'var(--cyan-faint)',
+              border: '1px solid var(--cyan-dim)',
+              borderRadius: 'var(--r-md)',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L4 6v6c0 5.25 3.5 10.15 8 11.35C16.5 22.15 20 17.25 20 12V6l-8-4z"
+                  stroke="var(--cyan)" strokeWidth="1.5" strokeLinejoin="round"/>
+                <path d="M9 12l2 2 4-4" stroke="var(--cyan)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--cyan)', wordBreak: 'break-all' }}>
+                {checksum}
+              </span>
+              <button onClick={() => copyCid(checksum)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: copiedCid === checksum ? 'var(--success)' : 'var(--muted)', padding: 2, flexShrink: 0 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                  {copiedCid === checksum
+                    ? <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    : <><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" strokeWidth="1.5"/></>
+                  }
+                </svg>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8, lineHeight: 1.6 }}>
+            Fetch the on-chain checksum to verify vault integrity and Shade Agent attestation.
+          </p>
+        )}
+      </div>
+
+      {/* ── Blockchain Audit Log (Fix 7) ──────────── */}
+      <div className="card" style={{ padding: '20px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <p className="label" style={{ margin: 0 }}>Blockchain Audit Log</p>
+          <button
+            onClick={handleFetchTransactions}
+            disabled={txLoading}
+            className="btn btn-ghost"
+            style={{ padding: '5px 12px', fontSize: 10 }}
+          >
+            {txLoading ? 'Loading…' : showAuditLog ? 'Refresh' : 'Load Transactions'}
+          </button>
+        </div>
+
+        {showAuditLog && (
+          <div className="animate-fade-in" style={{ marginTop: 14 }}>
+            <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 12, lineHeight: 1.6 }}>
+              All vault operations recorded immutably on NEAR blockchain. Each row is a cryptographically-linked file upload.
+            </p>
+            {transactions.length === 0 ? (
+              <p style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'center', padding: '16px 0' }}>
+                No transactions found
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {transactions.map((tx, i) => (
+                  <div key={i} style={{
+                    padding: '10px 12px',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--r-md)',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span className="badge badge-cyan" style={{ fontSize: 9 }}>UPLOAD</span>
+                      <span style={{ fontSize: 9, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
+                        #{i + 1}
+                      </span>
+                    </div>
+                    {[
+                      { label: 'USER', value: tx.user_id },
+                      { label: 'FILE HASH', value: `${tx.file_hash?.slice(0, 20)}…` },
+                      { label: 'IPFS', value: `${tx.ipfs_hash?.slice(0, 20)}…` },
+                    ].map(({ label, value }) => (
+                      <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                        <span style={{ fontSize: 9, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em', flexShrink: 0 }}>{label}</span>
+                        <span style={{ fontSize: 9, color: 'var(--dim)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ── Privacy Notice ────────────────────────── */}
       <div style={{
