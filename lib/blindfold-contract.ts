@@ -105,23 +105,29 @@ export async function askAdvisor(
     const account = await near.account(signerId);
 
     // Call smart contract's ask_advisor method
-    // Requires 0.01 NEAR deposit for storage — paid by relayer
+    // Contract signature: ask_advisor(question: String, portfolio_data: String) -> u64
+    // user is set to env::predecessor_account_id() by the contract (= relayer account)
     const result = await account.functionCall({
       contractId: CONTRACT_ID,
       methodName: 'ask_advisor',
       args: {
         question,
         portfolio_data: portfolioData,
-        // Pass user accountId so contract can record who asked
-        user: accountId,
       },
       gas: BigInt('30000000000000'), // 30 Tgas
       attachedDeposit: BigInt(parseNearAmount('0.01') || '0'), // 0.01 NEAR for storage
     });
 
-    // Extract request_id from result
-    const requestId = result as unknown as number;
-    console.log('✅ Request submitted to contract:', requestId);
+    // Extract request_id from FinalExecutionOutcome
+    // near-api-js returns FinalExecutionOutcome, success value is base64-encoded JSON
+    const outcome = result as any;
+    const successValue = outcome?.status?.SuccessValue;
+    let requestId = 0;
+    if (successValue) {
+      const decoded = Buffer.from(successValue, 'base64').toString('utf-8');
+      requestId = parseInt(decoded, 10);
+    }
+    console.log('✅ Request submitted to contract, requestId:', requestId);
 
     return requestId;
   } catch (error) {
